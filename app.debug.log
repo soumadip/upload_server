@@ -1,0 +1,314 @@
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: iot
+format_roll:: 99 --> 99
+LOG IN ALERT [id [113]]:: xyz, ROLL: 99, Dept: iot
+format_roll:: 98 --> 98
+LOG IN ALERT [id [114]]:: xyz, ROLL: 98, Dept: iotcsbt
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+format_roll:: 99 --> 99
+LOG IN ALERT [id [113]]:: xyz, ROLL: 99, Dept: iotcsbt
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+format_roll:: invalid roll no 13435
+format_roll:: 13435 --> 00
+LOG IN ALERT [id [113]]:: xyz, ROLL: 00, Dept: it
+format_roll:: invalid roll no 13435
+format_roll:: 13435 --> 00
+LOG IN ALERT [id [114]]:: xyz, ROLL: 00, Dept: it
+format_roll:: invalid roll no 13435
+format_roll:: 13435 --> 00
+LOG IN ALERT [id [115]]:: xyz, ROLL: 00, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [116]]:: xyz, ROLL: 99, Dept: iotcsbt
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [113]]:: xyz, ROLL: 99, Dept: it
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+LOG OUT ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [113]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [114]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [115]]:: xyz, ROLL: 99, Dept: it
+LOG OUT ALERT [id [115]]:: xyz, ROLL: 99, Dept: it
+LOG OUT ALERT [id [115]]:: xyz, ROLL: 99, Dept: it
+LOG OUT ALERT [id [115]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [116]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [117]]:: xyz, ROLL: 99, Dept: it
+LOG OUT ALERT [id [117]]:: xyz, ROLL: 99, Dept: it
+make_fname:: WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg -->  mod: 99_11111111111112_[117]_WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg
+UPLOAD ALERT:: ROLL: 99 --> WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg [NOTE:COMPILATION ERROR DETECTED]
+process_fname:: 99_11111111111112_[117]_WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg --> ret:['WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg']
+LOG OUT ALERT [id [117]]:: xyz, ROLL: 99, Dept: it
+make_fname:: WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg -->  mod: 99_11111111111112_[117]_WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg
+DELETE ALERT:: ROLL: 99 --> WhatsApp Image 2024-10-21 at 9.23.08 AM.jpeg
+LOG OUT ALERT [id [117]]:: xyz, ROLL: 99, Dept: it
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: Abc, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [113]]:: xyz, ROLL: 99, Dept: it
+LOG OUT ALERT [id [112]]:: Abc, ROLL: 99, Dept: it
+LOG OUT ALERT [id [112]]:: Abc, ROLL: 99, Dept: it
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [113]]:: Abc, ROLL: 99, Dept: it
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [113]]:: Abc, ROLL: 99, Dept: it
+LOG OUT ALERT [id [113]]:: Abc, ROLL: 99, Dept: it
+make_fname:: perm.c -->  mod: 99_11111111111111_[112]_perm.c
+UPLOAD ALERT:: ROLL: 99 --> perm.c [NOTE:COMPILATION ERROR DETECTED]
+process_fname:: 99_11111111111111_[112]_perm.c --> ret:['perm.c']
+make_fname:: perm.c -->  mod: 99_11111111111111_[112]_perm.c
+DELETE ALERT:: ROLL: 99 --> perm.c
+make_fname:: link.c -->  mod: 99_11111111111111_[112]_link.c
+UPLOAD ALERT:: ROLL: 99 --> link.c
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+LOG OUT ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+format_roll:: 99 --> 99
+LOG IN ALERT [id [114]]:: xyz, ROLL: 99, Dept: it
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+process_fname:: 99_11111111111111_[112]_link.c --> ret:['link.c']
+LOG OUT ALERT [id [112]]:: xyz, ROLL: 99, Dept: it
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+LOG OUT ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+
+
+_______START OF SESSION_______
+
+
+format_roll:: 99 --> 99
+LOG IN ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+LOG OUT ALERT [id [112]]:: xyz, ROLL: 99, Dept: iotcsbt
+
+
+_______START OF SESSION_______
+
+

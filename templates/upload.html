@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #333;
+        }
+        h3 {
+            color: #555;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            margin-bottom: 15px; /* Vertical space */
+        }
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+        }
+        #timer {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #d9534f; /* Danger color for warning */
+        }
+    </style>
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        // Function to start the countdown timer
+        function startCountdown(duration) {
+            let timerDisplay = document.getElementById('timer');
+            let endTime = Date.now() + duration * 1000;
+
+            const interval = setInterval(() => {
+                let remainingTime = endTime - Date.now();
+                if (remainingTime <= 0) {
+                    clearInterval(interval);
+                    timerDisplay.textContent = 'Session expired!';
+
+                    // Wait for 1 second before redirecting
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("setup") }}'; // Redirect after session expiry
+                    }, 2000); // 1000 ms = 1 second
+                } else {
+                    let hours = Math.floor((remainingTime / 1000 / 3600) % 24);
+                    let minutes = Math.floor((remainingTime / 1000 / 60) % 60);
+                    let seconds = Math.floor((remainingTime / 1000) % 60);
+			timerDisplay.textContent = `Current session remaining time: ${hours}h ${minutes}m ${seconds}s`;
+                }
+            }, 1000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set the duration (in seconds) for the session timeout
+            const sessionTimeout = {{ (session['end_time'] - session['start_time']) | default(0) }};
+            startCountdown(sessionTimeout);
+        });
+    </script>
+</head>
+<body>
+    <h2>Upload Files</h2>
+    <h3>Student Information:</h3>
+    <p>Name: {{ session['name'] }}</p>
+    <p>Department: {{ session['dept'] }}</p>
+    <p>Roll No: {{ session['roll_no'] }}</p>
+    <p>Enrollment No: {{ session['enrollment_no'] }}</p>
+
+    <form method="POST" enctype="multipart/form-data">
+	    <label>Choose .c/.cpp file(s) to upload</label><br/>
+        <input type="file" accept=".c,.cpp" name="files" multiple required><br>
+        <input type="submit" value="Upload">
+    </form>
+
+    <form action="{{ url_for('logout') }}" method="POST">
+        <div id="timer">Session time remaining: loading...</div>
+        <button type="submit">Logout</button>
+    </form>
+
+    <h3>Your Uploaded Files:</h3>
+    <h2>Current Session Files (uploaded, modification allowed):</h2>
+    <ul>
+        {% for file in curr_files %}
+        <li>
+            {{ file }}
+            <form method="POST" action="{{ url_for('delete_file', filename=file) }}" style="display:inline;">
+                <input type="submit" value="Delete">
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <h2>Previous Session(s) Files (saved, modification not allowed):</h2>
+    <ul>
+        {% for file in prev_files %}
+        <li>
+            {{ file }}
+        </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Flash messages block -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+</body>
+</html>
+
