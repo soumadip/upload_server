@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #333;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 15px; /* Vertical space between input fields */
+        }
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+    <script>
+        function validateForm() {
+            var name = document.querySelector('input[name="name"]').value;
+	    let radioButtons = document.getElementsByName('dept');
+            for (let radio of radioButtons) {
+            if (radio.checked) {
+               var dept = radio.value;
+		}
+	    }
+            var rollNo = document.querySelector('input[name="roll_no"]').value;
+            var enrollmentNo = document.querySelector('input[name="enrollment_no"]').value;
+            var enrollmentNoConfirm = document.querySelector('input[name="enrollment_no_confirm"]').value;
+
+			if (isNaN(rollNo) || rollNo < 1 || rollNo > 99){
+			    alert("Roll Number invalid!");
+                return false; // Prevent form submission
+			}
+			if (isNaN(enrollmentNo) || enrollmentNo < 0|| enrollmentNo.length != 14){
+			    alert("Enrollment Number invalid!");
+                return false; // Prevent form submission
+			}
+            // Check if enrollment numbers match
+            if (enrollmentNo !== enrollmentNoConfirm) {
+                alert("Enrollment numbers do not match!");
+                return false; // Prevent form submission
+            }
+			
+			if (dept=='it') dept = 'IT';
+			else if (dept=='iotcsbt') dept = 'CSE(IoTCSBT)';
+			else if (dept=='iot') dept = 'CSE(IoT)';
+            var confirmMessage = 
+                "Is the information correct?\n" +
+                "Name: " + name + "\n" +
+                "Dept: " + dept + "\n" +
+                "Roll No: " + rollNo + "\n" +
+                "Enrollment No: " + enrollmentNo;
+
+            return confirm(confirmMessage);
+        }
+        document.addEventListener('contextmenu', event => event.preventDefault());
+    </script>
+</head>
+<body oncopy="return false" oncut="return false" onpaste="return false">
+    <h2>Fill Your Information for Uploading Codes</h2>
+    <form method="POST" onsubmit="return validateForm()">
+        <label>Name:</label>
+        <input type="text" name="name" pattern="[a-zA-Z ]{3,}" title="only letters and space allowed" required>
+	<label>Department Name: </label>
+	<label><input type="radio" name="dept" value="it" required> IT</label>
+	<label><input type="radio" name="dept" value="iotcsbt"> CSE(IoTCSBT)</label>
+	<label><input type="radio" name="dept" value="iot"> CSE(IoT)</label>
+
+        <label>Roll No:</label>
+        <input type="text" name="roll_no" required>
+        <label>Enrollment No:</label>
+        <input type="text" name="enrollment_no" required>
+        <label>Confirm Enrollment No:</label>
+        <input type="text" name="enrollment_no_confirm" required>
+        <input type="submit" value="Log in">
+    </form>
+
+    <!-- Flash messages block -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+</body>
+</html>
+

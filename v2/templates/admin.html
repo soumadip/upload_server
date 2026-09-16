@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f8f9fa; }
+        .btn { padding: 10px 15px; background: #007bff; color: #fff; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; margin-right: 10px;}
+        .btn:hover { background: #0056b3; }
+        .status-Success { color: green; font-weight: bold; }
+        .status-Compilation, .status-Timeout { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Teacher Dashboard</h2>
+        {% if not logged_in %}
+            <form method="POST">
+                <label>Enter Admin PIN:</label><br><br>
+                <input type="password" name="pin" required style="padding: 8px;">
+                <button type="submit" class="btn">Login</button>
+            </form>
+        {% else %}
+            <h3>Active Session: <strong>{{ active_lab }}</strong></h3>
+            <a href="{{ url_for('download_zip') }}" class="btn">Download All Code (.zip)</a>
+            <a href="{{ url_for('export_csv') }}" class="btn" style="background: #28a745;">Export Database (.csv)</a>
+            
+            <table>
+                <tr><th>ID</th><th>Roll No</th><th>Dept</th><th>Filename</th><th>Status</th><th>Time</th></tr>
+                {% for sub in subs %}
+                <tr>
+                    <td>{{ sub[0] }}</td>
+                    <td>{{ sub[1] }}</td>
+                    <td>{{ sub[2] }}</td>
+                    <td>{{ sub[3] }}</td>
+                    <td class="status-{{ sub[4].split()[0] }}">{{ sub[4] }}</td>
+                    <td>{{ sub[5] }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        {% endif %}
+    </div>
+</body>
+</html>
