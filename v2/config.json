@@ -2,6 +2,7 @@
     "active_lab": "lab_test_01",
     "admin_pin": "8426",
     "session_timeout_seconds": 1200,
+    "debug_mode": true,
     "departments": [
         "IT",
         "CSE(IoTCSBT)",

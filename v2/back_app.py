@@ -23,6 +23,7 @@ ACTIVE_LAB = app_config.get("active_lab", "default_lab")
 ADMIN_PIN = app_config.get("admin_pin", "0000")
 SESSION_TIMEOUT = app_config.get("session_timeout_seconds", 1200)
 VALID_DEPTS = app_config.get("departments", [])
+DEBUG_MODE = app_config.get("debug_mode", False) # Defaults to False if missing
 
 ACTIVE_LAB = "lab_test_01" # Change this for different exams (e.g., dsa_midterm, algo_lab_2)
 
@@ -144,7 +145,13 @@ def upload():
 
     # Fetch files for UI display
     dept_dir = os.path.join(app.config['UPLOAD_FOLDER'], session['dept'])
-    files = [f for f in os.listdir(dept_dir) if f.startswith(session['roll_no'] + '_' + session['enrollment_no'] + '_')]
+
+    # FIX: Ensure the directory exists before attempting to list its contents
+    if not os.path.exists(dept_dir):
+        os.makedirs(dept_dir, exist_ok=True)
+
+    files = [f for f in os.listdir(dept_dir) if f.startswith(str(session['roll_no']) + '_' + str(session['enrollment_no']) + '_')]
+
     c_files = [process_fname(f) for f in files if session['id'] in f]
     p_files = [process_fname(f) for f in files if session['id'] not in f]
     
@@ -224,7 +231,15 @@ if __name__ == '__main__':
     for subdir in VALID_DEPTS:
         os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], subdir), exist_ok=True)
 
-    logging.basicConfig(filename='app.log', level=logging.INFO)
+    # Restoring your original split-log architecture
+    if DEBUG_MODE:
+        file_handler = logging.FileHandler('app.debug.log')
+        app.logger.setLevel(logging.DEBUG)
+    else:
+        file_handler = logging.FileHandler('app.log')
+        app.logger.setLevel(logging.INFO)
+
+    app.logger.addHandler(file_handler)
     app.logger.info('\n\n_______START OF SESSION_______\n\n')
     
-    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=DEBUG_MODE, use_reloader=DEBUG_MODE)

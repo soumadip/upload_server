@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard</title>
+    <!-- Bootstrap 5 & DataTables CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; }
+        .table-container { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-top: 20px;}
+        .status-Success { color: #198754; font-weight: bold; }
+        .status-Compilation, .status-Timeout { color: #dc3545; font-weight: bold; }
+        .dtrg-group th { background-color: #e9ecef !important; font-weight: bold; }
+        #fileContentCode { font-size: 14px; white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4 px-4 px-md-5">
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if not logged_in %}
+            <div class="row justify-content-center mt-5">
+                <div class="col-md-4 table-container text-center">
+                    <h3 class="mb-4">Teacher Dashboard</h3>
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Enter Admin PIN:</label>
+                            <input type="password" name="pin" class="form-control text-center" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="table-container">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 pb-3 border-bottom">
+                    <div>
+                        <h2 class="m-0">Teacher Dashboard</h2>
+                        <p class="text-muted m-0 fs-5">Active Session: <strong class="text-primary">{{ active_lab }}</strong></p>
+                    </div>
+                    <div class="mt-3 mt-md-0 d-flex gap-2">
+                        <a href="{{ url_for('admin.download_zip') }}" class="btn btn-primary shadow-sm">⬇ Download All (.zip)</a>
+                        <a href="{{ url_for('admin.export_csv') }}" class="btn btn-success shadow-sm">📄 Export to CSV</a>
+                        <form action="{{ url_for('student.logout') }}" method="POST" class="m-0">
+                            <button type="submit" class="btn btn-outline-danger shadow-sm">Logout</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <table id="submissionsTable" class="table table-striped table-hover table-bordered align-middle" style="width:100%">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Roll No</th>
+                            <th>Enrollment No</th>
+                            <th>Dept</th>
+                            <th>Filename</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in subs %}
+                        <tr>
+                            <td>{{ sub[0] }}</td>
+                            <td>{{ sub[1] }}</td>
+                            <td><code>{{ sub[2] }}</code></td>
+                            <td>{{ sub[3] }}</td>
+                            <td><code>{{ sub[4] }}</code></td>
+                            <td class="status-{{ sub[5].split()[0] }}">{{ sub[5] }}</td>
+                            <td>{{ sub[6] }}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-info text-white view-btn" data-subid="{{ sub[0] }}" data-filename="{{ sub[4] }}">
+                                    View
+                                </button>
+                                <!-- New Single File Download Button -->
+                                <a href="{{ url_for('admin.download_single', sub_id=sub[0]) }}" class="btn btn-sm btn-secondary">Download</a>
+                                <form action="{{ url_for('admin.delete_submission', sub_id=sub[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th></th>
+                            <th>Roll Filter</th>
+                            <th>Enrollment Filter</th>
+                            <th>Dept Filter</th>
+                            <th>File Search</th>
+                            <th>Status Filter</th>
+                            <th></th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Code Viewer Modal -->
+    <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="viewModalLabel">File Content</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-light">
+                    <pre><code id="fileContentCode">Loading code...</code></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            var table = $('#submissionsTable').DataTable({
+                "destroy": true,
+                "ajax": {
+                    "url": "/admin/api/submissions",
+                    "dataSrc": ""
+                },
+                "columns": [
+                    { "data": "id" },
+                    { "data": "roll_no" },
+                    {
+                        "data": "enrollment_no",
+                        "render": function(data) { return '<code>' + data + '<code>'; }
+                    },
+                    { "data": "dept" },
+                    {
+                        "data": "filename",
+                        "render": function(data) { return '<code>' + data + '</code>'; }
+                    },
+                    {
+                        "data": "status",
+                        "render": function(data) {
+                            var statusClass = data.startsWith('Success') ? 'status-Success' : 'status-Compilation';
+                            return '<span class="' + statusClass + '">' + data + '</span>';
+                        }
+                    },
+                    { "data": "timestamp" },
+                    {
+                        "data": null,
+                        "className": "text-center",
+                        "render": function(data, type, row) {
+                            return `
+                                <button type="button" class="btn btn-sm btn-info text-white view-btn" data-subid="${row.id}" data-filename="${row.filename}">View</button>
+                                <a href="/admin/download_single/${row.id}" class="btn btn-sm btn-secondary">Download</a>
+                                <form action="/admin/delete_sub/${row.id}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
+                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                </form>
+                            `;
+                        }
+                    }
+                ],
+                "order": [[ 6, "desc" ]],
+                "pageLength": 50,
+                rowGroup: { dataSrc: 1 },
+                initComplete: function () {
+                    var api = this.api();
+
+                    // Inputs for Roll No (Col 1), Enrollment No (Col 2), and Filename (Col 4)
+                    api.columns([1, 2, 4]).every(function() {
+                        var column = this;
+                        $('<input type="text" class="form-control form-control-sm" placeholder="Search..." />')
+                            .appendTo($(column.footer()).empty())
+                            .on('keyup change', function () {
+                                if (column.search() !== this.value) {
+                                    column.search(this.value).draw();
+                                }
+                            });
+                    });
+                },
+                // Re-populate dropdowns dynamically on every table draw/refresh
+                "drawCallback": function (settings) {
+                    var api = this.api();
+
+                    // Target Dept (Col 3) and Status (Col 5)
+                    api.columns([3, 5], { search: 'applied' }).every(function () {
+                        var column = this;
+                        var footerCell = $(column.footer());
+
+                        // Remember currently selected value so we don't wipe it out on reload
+                        var currentSelected = footerCell.find('select').val() || "";
+
+                        // Rebuild the select element
+                        var select = $('<select class="form-select form-select-sm"><option value="">All</option></select>')
+                            .on('change', function () {
+                                var val = $.fn.dataTable.util.escapeRegex($(this).val());
+                                column.search(val ? '^' + val + '$' : '', true, false).draw();
+                            });
+
+                        // Gather unique values currently available in the dataset
+                        var uniqueValues = [];
+                        column.data().unique().sort().each(function (d) {
+                            var textData = $('<div>').html(d).text();
+                            if (textData && uniqueValues.indexOf(textData) === -1) {
+                                uniqueValues.push(textData);
+                            }
+                        });
+
+                        uniqueValues.forEach(function (val) {
+                            var selectedAttr = (val === currentSelected) ? ' selected' : '';
+                            select.append('<option value="' + val + '"' + selectedAttr + '>' + val + '</option>');
+                        });
+
+                        footerCell.empty().append(select);
+                    });
+                }
+            });
+
+	    // Smart Polling: Check total record count every 5 seconds
+            var lastCount = -1;
+            setInterval(function () {
+                $.get('/admin/api/submissions', function(data) {
+                    var currentCount = data.length;
+                    if (lastCount !== -1 && currentCount !== lastCount) {
+                        // Only reload the table if a new row has been added or deleted!
+                        table.ajax.reload(null, false);
+                    }
+                    lastCount = currentCount;
+                });
+            }, 5000);
+
+            // Modal Logic
+            $('#submissionsTable').on('click', '.view-btn', function() {
+                var subId = $(this).data('subid');
+                var filename = $(this).data('filename');
+
+                $('#viewModalLabel').text(filename);
+                $('#fileContentCode').text('Fetching file content...');
+
+                var viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+                viewModal.show();
+
+                $.get('/admin/view/' + subId, function(data) {
+                    $('#fileContentCode').text(data);
+                }).fail(function() {
+                    $('#fileContentCode').text('Error: Could not load file.');
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>

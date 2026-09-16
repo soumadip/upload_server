@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup</title>
+    <meta charset="UTF-8">
+    <title>Lab Test Setup</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -89,15 +90,17 @@
         document.addEventListener('contextmenu', event => event.preventDefault());
     </script>
 </head>
+
 <body oncopy="return false" oncut="return false" onpaste="return false">
     <h2>Fill Your Information for Uploading Codes</h2>
-    <form method="POST" onsubmit="return validateForm()">
+    <form method="POST">
         <label>Name:</label>
         <input type="text" name="name" pattern="[a-zA-Z ]{3,}" title="only letters and space allowed" required>
-	<label>Department Name: </label>
-	<label><input type="radio" name="dept" value="it" required> IT</label>
-	<label><input type="radio" name="dept" value="iotcsbt"> CSE(IoTCSBT)</label>
-	<label><input type="radio" name="dept" value="iot"> CSE(IoT)</label>
+
+        <label>Department Name: </label>
+        {% for dept in departments %}
+            <label><input type="radio" name="dept" value="{{ dept }}" required> {{ dept }}</label>
+        {% endfor %}
 
         <label>Roll No:</label>
         <input type="text" name="roll_no" required>
