@@ -27,6 +27,7 @@ def setup():
 
     return render_template('setup.html', departments=current_app.config['VALID_DEPTS'])
 
+
 @student_bp.route('/upload', methods=['GET', 'POST'])
 def upload():
     timeout_seconds = current_app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()
@@ -42,9 +43,9 @@ def upload():
                 mod_fname = make_fname(safe_filename, session)
                 savefile = os.path.join(current_app.config['UPLOAD_FOLDER'], session['dept'], mod_fname)
                 file.save(savefile)
-                
+
                 has_err, status = code_has_error(savefile)
-                
+
                 conn = sqlite3.connect('lab_sessions.db')
                 c = conn.cursor()
                 c.execute("INSERT INTO submissions (assignment_id, roll_no, enrollment_no, dept, filename, status) VALUES (?, ?, ?, ?, ?, ?)",
@@ -53,49 +54,60 @@ def upload():
                 conn.close()
 
                 if has_err:
-                    current_app.logger.info('UPLOAD ALERT:: ROLL: %s --> %s [ERROR/TIMEOUT]', session['roll_no'], safe_filename)
-                    flash(f'{safe_filename} uploaded but failed compilation ({status}).', 'danger')
+                    flash(f'{safe_filename} uploaded but failed: {status}', 'danger')
                 else:
-                    current_app.logger.info('UPLOAD ALERT:: ROLL: %s --> %s', session['roll_no'], safe_filename)
                     flash(f'{safe_filename} uploaded successfully.', 'success')
             else:
                 flash('Invalid file type. Only .c and .cpp allowed.', 'danger')
 
-    dept_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], session['dept'])
-    if not os.path.exists(dept_dir):
-        os.makedirs(dept_dir, exist_ok=True)
+    # Fetch files AND their status from the database instead of the OS folder
+    conn = sqlite3.connect('lab_sessions.db')
+    c = conn.cursor()
+    c.execute("SELECT filename, status, timestamp FROM submissions WHERE roll_no = ? AND enrollment_no = ? AND assignment_id = ? ORDER BY timestamp DESC",
+              (session['roll_no'], session['enrollment_no'], current_app.config['ACTIVE_LAB']))
+    records = c.fetchall()
+    conn.close()
 
-    files = [f for f in os.listdir(dept_dir) if f.startswith(str(session['roll_no']) + '_' + str(session['enrollment_no']) + '_')]
-    c_files = [process_fname(f) for f in files if session['id'] in f]
-    p_files = [process_fname(f) for f in files if session['id'] not in f]
+    # Split into current session vs previous based on the session ID token
+    c_files = [{'original': process_fname(r[0]), 'full': r[0], 'status': r[1], 'time': r[2]} for r in records if session['id'] in r[0]]
+    p_files = [{'original': process_fname(r[0]), 'full': r[0], 'status': r[1], 'time': r[2]} for r in records if session['id'] not in r[0]]
+
+    # Generate the string for the HTML accept attribute (e.g., ".c,.cpp")
+    active_lab = current_app.config['ACTIVE_LAB']
+    allowed_exts = current_app.config['LAB_EXTENSIONS'].get(active_lab, ['c', 'cpp'])
+    accept_string = ",".join([f".{ext}" for ext in allowed_exts])
     
-    return render_template('upload.html', curr_files=c_files, prev_files=p_files)
+    return render_template('upload.html', curr_files=c_files, prev_files=p_files, accept_string=accept_string)
 
 @student_bp.route('/delete/<filename>', methods=['POST'])
 def delete_file(filename):
     if 'enrollment_no' not in session:
         return redirect(url_for('student.setup'))
 
-    target_fname = make_fname(filename, session)
-    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], session['dept'], target_fname)
-    
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], session['dept'], filename)
+
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT assignment_id FROM submissions WHERE filename = ?", (target_fname,))
+    c.execute("SELECT assignment_id FROM submissions WHERE filename = ?", (filename,))
     record = c.fetchone()
-    conn.close()
 
     if record and record[0] != current_app.config['ACTIVE_LAB']:
+        conn.close()
         flash('Action forbidden: Cannot modify files from previous lab sessions.', 'danger')
         return redirect(url_for('student.upload'))
 
+    # Delete from physical storage
     if os.path.isfile(filepath):
         os.remove(filepath)
-        flash('File deleted successfully.', 'success')
-    else:
-        flash('File not found.', 'danger')
-        
+
+    # Delete from database so it vanishes from the UI
+    c.execute("DELETE FROM submissions WHERE filename = ?", (filename,))
+    conn.commit()
+    conn.close()
+
+    flash('File deleted successfully.', 'success')
     return redirect(url_for('student.upload'))
+
 
 @student_bp.route('/logout', methods=['POST'])
 def logout():

@@ -31,6 +31,8 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = 'uploads'
     app.config['ACTIVE_LAB'] = app_config.get("active_lab", "default_lab")
     app.config['VALID_DEPTS'] = app_config.get("departments", [])
+
+    app.config['LAB_EXTENSIONS'] = app_config.get("lab_extensions", {})
     
     app.config['SESSION_PERMANENT'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=app_config.get("session_timeout_seconds", 1200))

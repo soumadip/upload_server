@@ -8,5 +8,10 @@
         "CSE(IoTCSBT)",
         "CSE(IoT)",
         "CS"
-    ]
+    ],
+    "lab_extensions": {
+        "lab_test_01": ["c", "cpp"],
+        "java_midterm": ["java"],
+        "scripting_lab": ["py", "sh"]
+    }
 }
