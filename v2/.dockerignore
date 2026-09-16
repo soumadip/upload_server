@@ -1,0 +1,7 @@
+.pytest_cache/
+__pycache__/
+uploads/
+test_cases/
+lab_sessions.db
+config.json
+tests/

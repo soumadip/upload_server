@@ -1,6 +1,10 @@
+import hmac
 from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, Response, redirect, url_for, jsonify
 import sqlite3, os, zipfile, io, csv, json
 import json
+import threading
+from flask import current_app
+from ..grader import run_grader_task
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -11,7 +15,11 @@ def get_admin_pin():
 @admin_bp.route('/', methods=['GET', 'POST'])
 def dashboard():
     if request.method == 'POST':
-        if request.form.get('pin') == get_admin_pin():
+        submitted_pin = request.form.get('pin', '')
+        actual_pin = current_app.config.get('ADMIN_PIN', '')
+        
+        # Use constant-time comparison for security
+        if hmac.compare_digest(submitted_pin, actual_pin):
             session['is_admin'] = True
         else:
             flash('Invalid PIN', 'danger')
@@ -147,3 +155,52 @@ def api_submissions():
             'timestamp': row[6]
         })
     return jsonify(data)
+
+@admin_bp.route('/trigger_grader', methods=['POST'])
+def trigger_grader():
+    if not session.get('is_admin'): abort(403)
+
+    # Grab the actual Flask app instance to pass into the thread
+    app = current_app._get_current_object()
+
+    # Spawn the background grader task
+    thread = threading.Thread(target=run_grader_task, args=(app,))
+    thread.daemon = True
+    thread.start()
+
+    flash('Auto-grader started in the background. Submissions will update shortly as they are evaluated.', 'success')
+    return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route('/api/grade_single/<int:sub_id>', methods=['POST'])
+def grade_single(sub_id):
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+
+    # Check if this is a custom execution or a fetch for existing logs
+    custom_input = request.json.get('custom_input', None)
+
+    conn = sqlite3.connect('lab_sessions.db')
+    c = conn.cursor()
+    c.execute("SELECT dept, filename, output_log, status FROM submissions WHERE id = ?", (sub_id,))
+    record = c.fetchone()
+
+    if not record:
+        conn.close()
+        return jsonify({'error': 'Not found'}), 404
+
+    dept, filename, db_log, db_status = record
+
+    # If no custom input is provided, just return the existing log from the DB
+    if custom_input is None:
+        conn.close()
+        return jsonify({'status': db_status, 'log': db_log or 'No logs available. Run evaluation first.'})
+
+    # If custom input IS provided, run it live!
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
+    active_lab = current_app.config['ACTIVE_LAB']
+
+    from ..grader import evaluate_submission
+    status, log = evaluate_submission(filepath, filename, active_lab, custom_input)
+
+    # We don't overwrite their official grade in the DB for a custom test, we just return it to the teacher
+    conn.close()
+    return jsonify({'status': status, 'log': log})

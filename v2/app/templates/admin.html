@@ -52,6 +52,11 @@
                         <p class="text-muted m-0 fs-5">Active Session: <strong class="text-primary">{{ active_lab }}</strong></p>
                     </div>
                     <div class="mt-3 mt-md-0 d-flex gap-2">
+			<!-- NEW GRADER BUTTON -->
+                        <form action="{{ url_for('admin.trigger_grader') }}" method="POST" class="m-0">
+                            <button type="submit" class="btn btn-warning shadow-sm fw-bold">⚙️ Run Auto-Grader</button>
+                        </form>
+
                         <a href="{{ url_for('admin.download_zip') }}" class="btn btn-primary shadow-sm">⬇ Download All (.zip)</a>
                         <a href="{{ url_for('admin.export_csv') }}" class="btn btn-success shadow-sm">📄 Export to CSV</a>
                         <form action="{{ url_for('student.logout') }}" method="POST" class="m-0">
@@ -132,6 +137,29 @@
         </div>
     </div>
 
+    <!-- Live Evaluation & Log Modal -->
+    <div class="modal fade" id="evalModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title fw-bold" id="evalModalLabel">Execution Console</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body bg-light">
+                    <h6 class="fw-bold">Current Status: <span id="evalCurrentStatus" class="badge bg-secondary">Loading...</span></h6>
+
+                    <label class="fw-bold mt-3">Custom Standard Input (Optional):</label>
+                    <textarea id="customInputArea" class="form-control font-monospace mb-3" rows="3" placeholder="Enter input to pipe into the program..."></textarea>
+
+                    <button id="runCustomBtn" class="btn btn-primary w-100 mb-3 fw-bold">⚙️ Run with Custom Input</button>
+
+                    <label class="fw-bold">Output / Execution Logs:</label>
+                    <pre><code id="evalLogCode" class="text-white bg-dark p-3 rounded d-block" style="font-size:13px; min-height: 150px; white-space: pre-wrap;">Loading logs...</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -173,6 +201,9 @@
                         "render": function(data, type, row) {
                             return `
                                 <button type="button" class="btn btn-sm btn-info text-white view-btn" data-subid="${row.id}" data-filename="${row.filename}">View</button>
+				<!-- NEW EVALUATE BUTTON -->
+                                <button type="button" class="btn btn-sm btn-warning eval-btn" data-subid="${row.id}" data-filename="${row.filename}">Logs/Run</button>
+
                                 <a href="/admin/download_single/${row.id}" class="btn btn-sm btn-secondary">Download</a>
                                 <form action="/admin/delete_sub/${row.id}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
                                     <button type="submit" class="btn btn-sm btn-danger">Delete</button>
@@ -265,6 +296,59 @@
                     $('#fileContentCode').text(data);
                 }).fail(function() {
                     $('#fileContentCode').text('Error: Could not load file.');
+                });
+            });
+	   
+	    // Evaluation Modal Logic
+            let currentEvalId = null;
+            
+            $('#submissionsTable').on('click', '.eval-btn', function() {
+                currentEvalId = $(this).data('subid');
+                var filename = $(this).data('filename');
+                
+                $('#evalModalLabel').text("Execution Console: " + filename);
+                $('#evalLogCode').text('Fetching latest logs...');
+                $('#evalCurrentStatus').text('...');
+                $('#customInputArea').val(''); // Clear old input
+                
+                var evalModal = new bootstrap.Modal(document.getElementById('evalModal'));
+                evalModal.show();
+                
+                // Fetch existing DB logs first
+                $.ajax({
+                    url: '/admin/api/grade_single/' + currentEvalId,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ custom_input: null }),
+                    success: function(response) {
+                        $('#evalCurrentStatus').text(response.status);
+                        $('#evalLogCode').text(response.log);
+                    }
+                });
+            });
+
+            // Run Custom Input Logic
+            $('#runCustomBtn').click(function() {
+                var inputVal = $('#customInputArea').val();
+                
+                var btn = $(this);
+                btn.prop('disabled', true).text('⏳ Executing in Sandbox...');
+                $('#evalLogCode').text('Running... Please wait.');
+                
+                $.ajax({
+                    url: '/admin/api/grade_single/' + currentEvalId,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ custom_input: inputVal }),
+                    success: function(response) {
+                        $('#evalCurrentStatus').text("Custom Run: " + response.status);
+                        $('#evalLogCode').text(response.log);
+                        btn.prop('disabled', false).text('⚙️ Run with Custom Input');
+                    },
+                    error: function() {
+                        $('#evalLogCode').text("Error connecting to evaluation server.");
+                        btn.prop('disabled', false).text('⚙️ Run with Custom Input');
+                    }
                 });
             });
         });

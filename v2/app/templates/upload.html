@@ -78,11 +78,21 @@
                             {% endif %}
                         </td>
                         <td class="text-muted small">{{ file.time }}</td>
-                        <td class="text-end">
-                            <form method="POST" action="{{ url_for('student.delete_file', filename=file.full) }}" class="m-0" onsubmit="return confirm('Delete this submission?');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                            </form>
-                        </td>
+			<td class="text-end">
+				{% if file.status == 'Uploaded' %}
+					<form method="POST" action="{{ url_for('student.request_eval', filename=file.full) }}" class="d-inline">
+					    <button type="submit" class="btn btn-sm btn-primary">Request Evaluation</button>
+					</form>
+				{% elif file.status == 'Pending Evaluation' %}
+					<button class="btn btn-sm btn-warning" disabled>Queued</button>
+				{% else %}
+					<button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>
+				{% endif %}
+
+				<form method="POST" action="{{ url_for('student.delete_file', filename=file.full) }}" class="d-inline ms-1" onsubmit="return confirm('Delete this submission?');">
+				    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+				</form>
+                    	</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="4" class="text-center text-muted py-4">No files uploaded yet.</td></tr>
@@ -122,6 +132,42 @@
             </table>
         </div>
     </div>
+
+    <!-- Report Modal -->
+	<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+	    <div class="modal-dialog modal-lg">
+		<div class="modal-content">
+		    <div class="modal-header bg-dark text-white">
+			<h5 class="modal-title">Evaluation Report</h5>
+			<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+		    </div>
+		    <div class="modal-body bg-light">
+			<pre><code id="reportContent" style="font-size: 14px; white-space: pre-wrap;">Loading...</code></pre>
+		    </div>
+		</div>
+	    </div>
+	</div>
+
+	<!-- Scripts -->
+	<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script>
+	    $(document).ready(function() {
+		$('.view-report-btn').click(function() {
+		    var filename = $(this).data('filename');
+		    $('#reportContent').text('Fetching report...');
+
+		    var reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
+		    reportModal.show();
+
+		    $.get('/view_report/' + filename, function(data) {
+			$('#reportContent').text(data);
+		    }).fail(function() {
+			$('#reportContent').text('Error loading report.');
+		    });
+		});
+	    });
+	</script>
 
     <!-- Timer Script -->
     <script>

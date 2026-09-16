@@ -1,17 +1,21 @@
 {
     "active_lab": "lab_test_01",
     "admin_pin": "8426",
+    "secret_key": "super-secret-persistent-key-change-this",
     "session_timeout_seconds": 1200,
-    "debug_mode": true,
+    "max_upload_mb": 5,
+    "debug_mode": false,
+    "allowed_ip_prefixes": [
+        "127.0.0.1",
+        "192.168.31.",
+        "10.10.10."
+    ],
     "departments": [
         "IT",
         "CSE(IoTCSBT)",
-        "CSE(IoT)",
-        "CS"
+        "CSE(IoT)"
     ],
     "lab_extensions": {
-        "lab_test_01": ["c", "cpp"],
-        "java_midterm": ["java"],
-        "scripting_lab": ["py", "sh"]
+        "lab_test_01": ["c", "cpp"]
     }
 }

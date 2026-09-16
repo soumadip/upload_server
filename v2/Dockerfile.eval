@@ -1,0 +1,15 @@
+# Use a lightweight Ubuntu base
+FROM ubuntu:22.04
+
+# Install compilers (C, C++, Java, Python) and math/threading libraries
+RUN apt-get update && apt-get install -y \
+    gcc g++ python3 openjdk-21-jdk bash make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a powerless non-root user to run the student code
+RUN useradd -m sandboxuser
+USER sandboxuser
+WORKDIR /sandbox
+
+# Keep the container alive just long enough to run commands
+CMD ["/bin/bash"]
