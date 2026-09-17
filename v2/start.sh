@@ -59,14 +59,24 @@ echo -e "${GREEN}✅ All core dependencies installed.${NC}\n"
 # --- 2. Docker Permissions Check ---
 echo -e "🐳 Verifying Docker daemon access..."
 if ! docker info &> /dev/null; then
-    echo -e "${RED}❌ Error: Docker is running, but you lack permissions to use it without sudo.${NC}"
-    echo -e "${YELLOW}💡 To fix this permanently, run these two commands:${NC}"
-    echo -e "   1. sudo usermod -aG docker \$USER"
-    echo -e "   2. newgrp docker"
-    echo -e "\nAfter running those commands, launch ./start.sh again."
+    echo -e "${RED}❌ Error: Cannot connect to Docker, or you lack permissions.${NC}"
+
+    # Check if the user is running WSL
+    if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null; then
+        echo -e "${YELLOW}💡 WSL Environment Detected! Your Docker daemon is likely turned off.${NC}"
+        echo -e "   Run this command to force it online in the background:"
+        echo -e "   ${CYAN}sudo dockerd &${NC}"
+        echo -e "   (Press Enter if the text keeps scrolling, then run ./start.sh again)"
+    else
+        echo -e "${YELLOW}💡 Standard Linux Detected! You likely need to fix user permissions.${NC}"
+        echo -e "   Run these two commands to grant your user access:"
+        echo -e "   ${CYAN}sudo usermod -aG docker \$USER${NC}"
+        echo -e "   ${CYAN}newgrp docker${NC}"
+        echo -e "   Then run ./start.sh again."
+    fi
     exit 1
 fi
-echo -e "${GREEN}✅ Docker permissions verified.${NC}\n"
+echo -e "${GREEN}✅ Docker daemon connected successfully.${NC}\n"
 
 # --- 3. Build Docker Sandbox ---
 if [[ "$(docker images -q lab_sandbox 2> /dev/null)" == "" ]]; then
