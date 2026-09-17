@@ -137,11 +137,7 @@
                         <td class="text-muted small">{{ file.time }}</td>
                         <!-- NEW: Added Evaluation Buttons -->
                         <td class="text-end">
-                            {% if file.status == 'Uploaded' %}
-                                <form method="POST" action="{{ url_for('student.request_eval', filename=file.full) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-primary">Request Evaluation</button>
-                                </form>
-                            {% elif file.status == 'Pending Evaluation' %}
+                            {% if file.status == 'Pending Evaluation' %}
                                 <button class="btn btn-sm btn-warning" disabled>Queued</button>
                             {% else %}
                                 <button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>
@@ -190,11 +186,7 @@
                             <td class="small text-muted">{{ file.time }}</td>
                             <td class="text-end">
                                 <!-- Re-Evaluation and Report Buttons (No Delete) -->
-                                {% if file.status == 'Uploaded' %}
-                                <form method="POST" action="{{ url_for('student.request_eval', filename=file.full) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-primary">Request Evaluation</button>
-                                </form>
-                                {% elif file.status == 'Pending Evaluation' %}
+                                {% if file.status == 'Pending Evaluation' %}
                                 <button class="btn btn-sm btn-warning" disabled>Queued</button>
                                 {% else %}
                                 <button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>

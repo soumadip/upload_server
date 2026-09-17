@@ -245,6 +245,9 @@
 
     <script>
         $(document).ready(function() {
+            // NEW: Suppress ugly DataTables alert popups on timeout
+            $.fn.dataTable.ext.errMode = 'none';
+
             var table = $('#submissionsTable').DataTable({
                 "destroy": true,
                 "ajax": {
@@ -345,13 +348,21 @@
             });
 
 	    // Manual Refresh Button Logic (Replaces setInterval)
-            $('#btnRefreshTable').click(function() {
-                var btn = $(this);
-                btn.text('⏳ Refreshing...');
-                // Reloads DataTables via AJAX without resetting pagination/sorting
-                table.ajax.reload(function() {
-                    btn.text('🔄 Refresh Status');
-                }, false); 
+        // --- NEW ROBUST REFRESH BUTTON LOGIC ---
+            var $refreshBtn = $('#btnRefreshTable');
+
+            $refreshBtn.off('click').on('click', function() {
+                // 1. Lock the button and change text to prevent spam clicks
+                $refreshBtn.prop('disabled', true).text('⏳ Refreshing...');
+
+                // 2. Tell DataTables to fetch new data (null = keep current pagination, false = don't reset)
+                table.ajax.reload(null, false);
+            });
+
+            // 3. Listen for the AJAX network request to finish (Fires on BOTH Success and Timeout/Error)
+            table.on('xhr.dt', function (e, settings, json, xhr) {
+                // Instantly unlock the button and reset the text
+                $refreshBtn.prop('disabled', false).text('🔄 Refresh Status');
             });
 
             // Modal Logic

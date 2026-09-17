@@ -1,7 +1,7 @@
 {
     "active_lab": "lab_test_01",
-    "admin_pin": "8426",
-    "secret_key": "super-secret-persistent-key-change-this",
+    "admin_pin": "5545",
+    "secret_key": "40fc6c9d1ac3271f36c4ea587df0a8d69fe54ea1f3ada7e06fbdb07cb0f97ed9",
     "session_timeout_seconds": 1200,
     "max_upload_mb": 5,
     "debug_mode": false,
@@ -16,6 +16,9 @@
         "CSE(IoT)"
     ],
     "lab_extensions": {
-        "lab_test_01": ["c", "cpp"]
+        "lab_test_01": [
+            "c",
+            "cpp"
+        ]
     }
 }

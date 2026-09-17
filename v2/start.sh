@@ -98,6 +98,22 @@ source venv/bin/activate
 pip install -q -r requirements.txt
 echo -e "${GREEN}✅ Python environment ready.${NC}\n"
 
+# --- 4.5 Configuration Wizard ---
+echo -e "⚙️ Checking server configuration..."
+
+# If the config still has the default secret key, force the setup wizard
+if grep -q "super-secret-persistent-key-change-this" config.json; then
+    echo -e "${YELLOW}⚠️ First-time setup detected. Launching Configuration Wizard...${NC}"
+    python3 configure_lab.py
+else
+    # For subsequent runs, ask if they want to update settings
+    read -p "Would you like to run the Configuration Wizard? (y/n): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        python3 configure_lab.py
+    fi
+fi
+
 # --- 5. Start Server ---
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${GREEN}🌟 Starting Flask Server on http://0.0.0.0:5000${NC}"

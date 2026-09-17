@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import hmac
 from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, send_from_directory, Response, redirect, url_for, jsonify
 import sqlite3, os, zipfile, io, csv, json
@@ -70,29 +71,50 @@ def download_single(sub_id):
 @admin_bp.route('/download_zip')
 def download_zip():
     if not session.get('is_admin'): abort(403)
+
+    active_lab = current_app.config['ACTIVE_LAB']
+
+    # 1. Fetch only submissions for the active lab
+    conn = sqlite3.connect('lab_sessions.db')
+    c = conn.cursor()
+    c.execute("SELECT roll_no, dept, filename FROM submissions WHERE assignment_id = ?", (active_lab,))
+    records = c.fetchall()
+    conn.close()
+
     memory_file = io.BytesIO()
+
+    # 2. Build the ZIP file in memory
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(current_app.config['UPLOAD_FOLDER']):
-            for file in files:
-                zf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), current_app.config['UPLOAD_FOLDER']))
+        for roll_no, dept, filename in records:
+            # The physical location on the server's hard drive
+            physical_path = os.path.join(current_app.config['UPLOAD_FOLDER'], active_lab, dept, filename)
+
+            if os.path.exists(physical_path):
+                # The clean, organized folder structure INSIDE the ZIP file
+                zip_path = os.path.join(dept, roll_no, filename)
+                zf.write(physical_path, zip_path)
+
     memory_file.seek(0)
-    return send_file(memory_file, download_name=f"{current_app.config['ACTIVE_LAB']}_files.zip", as_attachment=True)
+
+    # 3. Send the neatly organized archive to the teacher
+    return send_file(memory_file, download_name=f"{active_lab}_submissions.zip", as_attachment=True)
 
 @admin_bp.route('/export_csv')
 def export_csv():
     if not session.get('is_admin'): abort(403)
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT roll_no, dept, filename, status, timestamp FROM submissions WHERE assignment_id = ?", (current_app.config['ACTIVE_LAB'],))
+    # NEW: Added enrollment_no to the query
+    c.execute("SELECT roll_no, enrollment_no, dept, filename, status, timestamp FROM submissions WHERE assignment_id = ?", (current_app.config['ACTIVE_LAB'],))
     subs = c.fetchall()
     conn.close()
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Roll No', 'Department', 'Filename', 'Status', 'Timestamp'])
+    # NEW: Added Enrollment No to the header row
+    writer.writerow(['Roll No', 'Enrollment No', 'Department', 'Filename', 'Status', 'Timestamp'])
     writer.writerows(subs)
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": f"attachment;filename={current_app.config['ACTIVE_LAB']}_report.csv"})
-
 
 @admin_bp.route('/view/<int:sub_id>')
 def view_file(sub_id):
@@ -158,8 +180,23 @@ def api_submissions():
     if not session.get('is_admin'):
         return jsonify({'error': 'Unauthorized'}), 403
 
-    conn = sqlite3.connect('lab_sessions.db')
+    conn = sqlite3.connect('lab_sessions.db', timeout=10)
     c = conn.cursor()
+
+    # FIXED: Use exact UTC time so it perfectly aligns with SQLite's internal clock
+    cutoff_time = (datetime.utcnow() - timedelta(hours=4)).strftime('%Y-%m-%d %H:%M:%S')
+
+    try:
+        c.execute("""
+            UPDATE submissions
+            SET status = 'Pending Evaluation'
+            WHERE status = 'Uploaded'
+            AND timestamp <= ?
+        """, (cutoff_time,))
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
     c.execute("SELECT id, roll_no, enrollment_no, dept, filename, status, timestamp FROM submissions WHERE assignment_id = ? ORDER BY timestamp DESC", (current_app.config['ACTIVE_LAB'],))
     rows = c.fetchall()
     conn.close()

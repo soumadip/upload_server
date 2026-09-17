@@ -28,7 +28,6 @@ def setup():
 
     return render_template('setup.html', departments=current_app.config['VALID_DEPTS'])
 
-
 @student_bp.route('/upload', methods=['GET', 'POST'])
 def upload():
     timeout_seconds = current_app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()
@@ -50,9 +49,7 @@ def upload():
                 savefile = os.path.join(save_dir, mod_fname)
                 file.save(savefile)
 
-                # CRITICAL FIX 1: Run the secure Docker sandbox immediately on upload
                 status = "Uploaded"
-
                 conn = sqlite3.connect('lab_sessions.db')
                 c = conn.cursor()
                 c.execute("INSERT INTO submissions (assignment_id, roll_no, enrollment_no, dept, filename, status) VALUES (?, ?, ?, ?, ?, ?)",
@@ -67,24 +64,20 @@ def upload():
             else:
                 flash('Invalid file type for this lab session.', 'danger')
 
-    # Fetch files
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT filename, status, timestamp FROM submissions WHERE roll_no = ? AND enrollment_no = ? AND assignment_id = ? ORDER BY timestamp DESC",
-              (session['roll_no'], session['enrollment_no'], active_lab))
-    records = c.fetchall()
-    conn.close()
 
-    c_files = [{'original': process_fname(r[0]), 'full': r[0], 'status': r[1], 'time': r[2]} for r in records if session['id'] in r[0]]
-    p_files = [{'original': process_fname(r[0]), 'full': r[0], 'status': r[1], 'time': r[2]} for r in records if session['id'] not in r[0]]
+    # NEW: Automatically queue any previous session/historical files that are still 'Uploaded'
+    # The LIKE check ensures we ignore the current active session ID
+    c.execute("""
+        UPDATE submissions 
+        SET status = 'Pending Evaluation' 
+        WHERE roll_no = ? AND enrollment_no = ? AND status = 'Uploaded'
+        AND (assignment_id != ? OR filename NOT LIKE ?)
+    """, (session['roll_no'], session['enrollment_no'], active_lab, f"%{session['id']}%"))
+    conn.commit()
 
-    allowed_exts = current_app.config['LAB_EXTENSIONS'].get(active_lab, ['c', 'cpp'])
-    accept_string = ",".join([f".{ext}" for ext in allowed_exts])
-
-    # --- FETCH FILES (Inside upload() route) ---
-    conn = sqlite3.connect('lab_sessions.db')
-    c = conn.cursor()
-    # Removed the assignment_id filter to fetch all historical files
+    # Fetch ALL files cleanly in one query
     c.execute("SELECT filename, status, timestamp, assignment_id FROM submissions WHERE roll_no = ? AND enrollment_no = ? ORDER BY timestamp DESC",
               (session['roll_no'], session['enrollment_no']))
     records = c.fetchall()
@@ -96,8 +89,7 @@ def upload():
 
     for r in records:
         file_info = {'original': process_fname(r[0]), 'full': r[0], 'status': r[1], 'time': r[2], 'lab': r[3]}
-
-        # Sort by active lab vs historical labs
+        # Sort into Current Lab vs Historical Labs
         if r[3] == active_lab:
             if session['id'] in r[0]:
                 c_files.append(file_info)
@@ -109,11 +101,7 @@ def upload():
     allowed_exts = current_app.config['LAB_EXTENSIONS'].get(active_lab, ['c', 'cpp'])
     accept_string = ",".join([f".{ext}" for ext in allowed_exts])
 
-    # Pass the new historical_files array to the template
     return render_template('upload.html', curr_files=c_files, prev_files=p_files, historical_files=historical_files, accept_string=accept_string)
-
-    return render_template('upload.html', curr_files=c_files, prev_files=p_files, accept_string=accept_string)
-
 
 @student_bp.route('/delete/<filename>', methods=['POST'])
 def delete_file(filename):
