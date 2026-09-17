@@ -2,3 +2,55 @@ uploads/*
 v2/uploads/*
 a.out
 *.log
+v2/venv/
+*un~
+# ==========================================
+# Python & Virtual Environments
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# ==========================================
+# Application Data & Secrets
+# ==========================================
+# Ignore the live database to prevent committing student data
+lab_sessions.db
+
+# Ignore the configuration file to protect the secret_key and admin_pin
+config.json
+
+# ==========================================
+# Logs
+# ==========================================
+*.log
+app.log
+app.debug.log
+
+# ==========================================
+# Dynamic Storage Directories
+# ==========================================
+# Ignore all files inside these folders, but keep the empty folders in Git
+uploads/*
+!uploads/.gitkeep
+
+test_cases/*
+!test_cases/.gitkeep
+
+# ==========================================
+# Testing
+# ==========================================
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================================
+# OS & Editor Junk
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
