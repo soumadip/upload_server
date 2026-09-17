@@ -7,6 +7,15 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# --- Graceful Exit Handler ---
+cleanup() {
+    echo -e "\n${YELLOW}🛑 Shutting down Lab Server gracefully...${NC}"
+    # Kill any child processes (like the Flask server) when Ctrl+C is pressed
+    pkill -P $$ 
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${CYAN}   🚀 Initializing Lab Submission Server...      ${NC}"
 echo -e "${CYAN}=================================================${NC}\n"
@@ -18,7 +27,6 @@ prompt_install() {
     
     echo -e "${YELLOW}⚠️ Missing required dependency: ${package_name}${NC}"
     
-    # Check if the system uses 'apt' (Ubuntu/Debian)
     if command -v apt &> /dev/null; then
         read -p "Would you like to install it now using apt? (y/n): " -n 1 -r
         echo
@@ -39,17 +47,15 @@ prompt_install() {
 # --- 1. System Checks ---
 echo -e "🔍 Checking system dependencies..."
 
-# Check Python 3
 if ! command -v python3 &> /dev/null; then
     prompt_install "Python 3" "python3"
 fi
 
-# Check Python Virtual Environment module (often separated in Ubuntu)
+# Many modern distros require python3-full to properly create virtual environments
 if ! python3 -m venv -h &> /dev/null; then
-    prompt_install "Python 3 venv module" "python3-venv"
+    prompt_install "Python 3 venv module" "python3-venv python3-full"
 fi
 
-# Check Docker
 if ! command -v docker &> /dev/null; then
     prompt_install "Docker" "docker.io"
 fi
@@ -61,7 +67,6 @@ echo -e "🐳 Verifying Docker daemon access..."
 if ! docker info &> /dev/null; then
     echo -e "${RED}❌ Error: Cannot connect to Docker, or you lack permissions.${NC}"
 
-    # Check if the user is running WSL
     if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null; then
         echo -e "${YELLOW}💡 WSL Environment Detected! Your Docker daemon is likely turned off.${NC}"
         echo -e "   Run this command to force it online in the background:"
@@ -88,25 +93,39 @@ else
 fi
 
 # --- 4. Python Environment Setup ---
-if [ ! -d "venv" ]; then
+# Check specifically for the activate script, not just the folder
+if [ ! -f "venv/bin/activate" ]; then
     echo -e "🐍 ${YELLOW}Creating Python virtual environment...${NC}"
-    python3 -m venv venv
+    rm -rf venv # Clear out any corrupted partial builds
+    
+    python3 -m venv venv || {
+        echo -e "${RED}❌ Failed to create virtual environment.${NC}"
+        echo -e "💡 Try running: sudo apt install python3-full"
+        exit 1
+    }
 fi
 
 echo -e "📥 Activating environment and verifying Python packages..."
-source venv/bin/activate
-pip install -q -r requirements.txt
+# Exit immediately if activation fails to prevent system-wide pip corruption
+source venv/bin/activate || {
+    echo -e "${RED}❌ Critical error: Could not activate virtual environment.${NC}"
+    exit 1
+}
+
+# Run pip safely inside the isolated environment
+pip install -q -r requirements.txt || {
+    echo -e "${RED}❌ Failed to install required Python packages.${NC}"
+    exit 1
+}
 echo -e "${GREEN}✅ Python environment ready.${NC}\n"
 
 # --- 4.5 Configuration Wizard ---
 echo -e "⚙️ Checking server configuration..."
 
-# If the config still has the default secret key, force the setup wizard
 if grep -q "super-secret-persistent-key-change-this" config.json; then
     echo -e "${YELLOW}⚠️ First-time setup detected. Launching Configuration Wizard...${NC}"
     python3 configure_lab.py
 else
-    # For subsequent runs, ask if they want to update settings
     read -p "Would you like to run the Configuration Wizard? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -117,5 +136,6 @@ fi
 # --- 5. Start Server ---
 echo -e "${CYAN}=================================================${NC}"
 echo -e "${GREEN}🌟 Starting Flask Server on http://0.0.0.0:5000${NC}"
+echo -e "${YELLOW}   (Press Ctrl+C to stop the server safely)${NC}"
 echo -e "${CYAN}=================================================${NC}"
 python3 run.py
