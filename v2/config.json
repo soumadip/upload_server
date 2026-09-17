@@ -1,6 +1,6 @@
 {
     "active_lab": "lab_test_01",
-    "admin_pin": "5545",
+    "admin_pin": "8426",
     "secret_key": "40fc6c9d1ac3271f36c4ea587df0a8d69fe54ea1f3ada7e06fbdb07cb0f97ed9",
     "session_timeout_seconds": 1200,
     "max_upload_mb": 5,

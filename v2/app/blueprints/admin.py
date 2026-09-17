@@ -1,30 +1,46 @@
-from datetime import datetime, timedelta
 import hmac
-from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, send_from_directory, Response, redirect, url_for, jsonify
-import sqlite3, os, zipfile, io, csv, json
-import json
-import threading
-from flask import current_app
+from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, Response, redirect, url_for, jsonify
+import sqlite3, os, zipfile, io, csv, threading, time
+from datetime import datetime, timedelta
+from werkzeug.utils import secure_filename
 from ..grader import run_grader_task
 from ..config_manager import create_new_lab, set_active_lab
-import os
 
 admin_bp = Blueprint('admin', __name__)
 
-def get_admin_pin():
-    with open('config.json', 'r') as f:
-        return json.load(f).get("admin_pin", "0000")
+# --- RATE LIMITER DICTIONARY ---
+FAILED_LOGINS = {}
+MAX_ATTEMPTS = 5
+LOCKOUT_WINDOW = 300 # 5 minutes
 
 @admin_bp.route('/', methods=['GET', 'POST'])
 def dashboard():
+    ip = request.remote_addr
+    now = time.time()
+
+    # Clean expired lockouts
+    if ip in FAILED_LOGINS and now > FAILED_LOGINS[ip]['lockout_until']:
+        FAILED_LOGINS.pop(ip)
+
     if request.method == 'POST':
+        # Enforce Lockout
+        if ip in FAILED_LOGINS and FAILED_LOGINS[ip]['count'] >= MAX_ATTEMPTS:
+            flash('Too many failed attempts. Try again in 5 minutes.', 'danger')
+            return render_template('admin.html', logged_in=False)
+
         submitted_pin = request.form.get('pin', '')
-        actual_pin = current_app.config.get('ADMIN_PIN', '')
+        actual_pin = str(current_app.config.get('ADMIN_PIN', ''))
         
-        # Use constant-time comparison for security
         if hmac.compare_digest(submitted_pin, actual_pin):
             session['is_admin'] = True
+            if ip in FAILED_LOGINS:
+                FAILED_LOGINS.pop(ip)
         else:
+            attempts = FAILED_LOGINS.get(ip, {'count': 0, 'lockout_until': 0})
+            attempts['count'] += 1
+            if attempts['count'] >= MAX_ATTEMPTS:
+                attempts['lockout_until'] = now + LOCKOUT_WINDOW
+            FAILED_LOGINS[ip] = attempts
             flash('Invalid PIN', 'danger')
 
     if not session.get('is_admin'):
@@ -32,14 +48,12 @@ def dashboard():
 
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    # Upgraded query to also fetch enrollment_no (ensure your DB column matches, or if roll_no is combined)
-    # Note: If enrollment number isn't explicitly saved as a column, we can fetch it or include it.
-    # Let's add 'enrollment_no' to the query. If your table doesn't have it yet, see note below!
     c.execute("SELECT id, roll_no, enrollment_no, dept, filename, status, timestamp FROM submissions WHERE assignment_id = ? ORDER BY timestamp DESC", (current_app.config['ACTIVE_LAB'],))
     subs = c.fetchall()
     conn.close()
 
     return render_template('admin.html', logged_in=True, subs=subs, active_lab=current_app.config['ACTIVE_LAB'])
+    
 
 @admin_bp.route('/download_single/<int:sub_id>')
 def download_single(sub_id):
@@ -62,7 +76,7 @@ def download_single(sub_id):
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
 
         if os.path.exists(filepath):
-            # Using absolute path perfectly bypasses Flask's directory restrictions
+            # Using absolute path directly accesses the validated internal storage path
             return send_file(os.path.abspath(filepath), as_attachment=True, download_name=filename)
 
     flash('File not found.', 'danger')
@@ -135,6 +149,7 @@ def view_file(sub_id):
 
     # 2. Fallback to the legacy path
     if not os.path.exists(filepath):
+        # Using absolute path directly accesses the validated internal storage path
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
 
     if os.path.exists(filepath):
@@ -161,6 +176,7 @@ def delete_submission(sub_id):
 
         # 2. Fallback to the legacy path
         if not os.path.exists(filepath):
+            # Using absolute path directly accesses the validated internal storage path
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
 
         # 3. Delete the physical file
@@ -265,17 +281,18 @@ def grade_single(sub_id):
 def api_create_lab():
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
     data = request.json
-    if data.get('lab_name'):
-        create_new_lab(current_app, data['lab_name'], data.get('extensions', ['c', 'cpp']))
-        return jsonify({'status': 'success', 'message': f"Lab {data['lab_name']} initialized."})
+    safe_lab = secure_filename(data.get('lab_name', ''))
+    if safe_lab:
+        create_new_lab(current_app, safe_lab, data.get('extensions', ['c', 'cpp']))
+        return jsonify({'status': 'success', 'message': f"Lab {safe_lab} initialized."})
     return jsonify({'error': 'Invalid data'}), 400
 
 @admin_bp.route('/api/add_test_case_manual', methods=['POST'])
 def api_add_test_case_manual():
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
-    lab_name = request.json.get('lab_name')
-    test_dir = os.path.join('test_cases', lab_name)
-    os.makedirs(test_dir, exist_ok=True) # Ensure dir exists
+    safe_lab = secure_filename(request.json.get('lab_name', ''))
+    test_dir = os.path.join('test_cases', safe_lab)
+    os.makedirs(test_dir, exist_ok=True)
 
     # Auto-increment the test case number
     existing = [f for f in os.listdir(test_dir) if f.startswith('input_')]
@@ -289,8 +306,8 @@ def api_add_test_case_manual():
 @admin_bp.route('/api/upload_test_cases', methods=['POST'])
 def api_upload_test_cases():
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
-    lab_name = request.form.get('lab_name')
-    test_dir = os.path.join('test_cases', lab_name)
+    safe_lab = secure_filename(request.form.get('lab_name', ''))
+    test_dir = os.path.join('test_cases', safe_lab)
     os.makedirs(test_dir, exist_ok=True)
 
     count = 0
@@ -300,7 +317,7 @@ def api_upload_test_cases():
             file.save(os.path.join(test_dir, safe_name))
             count += 1
 
-    return jsonify({'status': 'success', 'message': f'Uploaded {count} files to {lab_name}'})
+    return jsonify({'status': 'success', 'message': f'Uploaded {count} files to {safe_lab}'})
 
 @admin_bp.route('/api/get_labs', methods=['GET'])
 def api_get_labs():
@@ -313,8 +330,8 @@ def api_get_labs():
 @admin_bp.route('/api/set_active_lab', methods=['POST'])
 def api_set_active_lab():
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
-    lab_name = request.json.get('lab_name')
-    if lab_name in current_app.config.get('LAB_EXTENSIONS', {}):
-        set_active_lab(current_app, lab_name)
-        return jsonify({'status': 'success', 'message': f'Active lab changed to {lab_name}'})
+    safe_lab = secure_filename(request.json.get('lab_name', ''))
+    if safe_lab in current_app.config.get('LAB_EXTENSIONS', {}):
+        set_active_lab(current_app, safe_lab)
+        return jsonify({'status': 'success', 'message': f'Active lab changed to {safe_lab}'})
     return jsonify({'error': 'Invalid lab name'}), 400

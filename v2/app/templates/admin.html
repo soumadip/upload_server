@@ -254,23 +254,30 @@
                     "url": "/admin/api/submissions",
                     "dataSrc": ""
                 },
-                "columns": [
+		"columns": [
                     { "data": "id" },
                     { "data": "roll_no" },
                     {
                         "data": "enrollment_no",
-                        "render": function(data) { return '<code>' + data + '<code>'; }
+                        "render": function(data) {
+                            var safeData = $('<div>').text(data).html();
+                            return '<code>' + safeData + '</code>';
+                        }
                     },
                     { "data": "dept" },
                     {
                         "data": "filename",
-                        "render": function(data) { return '<code>' + data + '</code>'; }
+                        "render": function(data) {
+                            var safeData = $('<div>').text(data).html();
+                            return '<code>' + safeData + '</code>';
+                        }
                     },
                     {
                         "data": "status",
                         "render": function(data) {
-                            var statusClass = data.startsWith('Success') ? 'status-Success' : 'status-Compilation';
-                            return '<span class="' + statusClass + '">' + data + '</span>';
+                            var safeData = $('<div>').text(data).html();
+                            var statusClass = safeData.startsWith('Success') ? 'status-Success' : 'status-Compilation';
+                            return '<span class="' + statusClass + '">' + safeData + '</span>';
                         }
                     },
                     { "data": "timestamp" },
@@ -278,13 +285,13 @@
                         "data": null,
                         "className": "text-center",
                         "render": function(data, type, row) {
+                            var safeFile = $('<div>').text(row.filename).html();
+                            var safeId = parseInt(row.id, 10);
                             return `
-                                <button type="button" class="btn btn-sm btn-info text-white view-btn" data-subid="${row.id}" data-filename="${row.filename}">View</button>
-				<!-- NEW EVALUATE BUTTON -->
-                                <button type="button" class="btn btn-sm btn-warning eval-btn" data-subid="${row.id}" data-filename="${row.filename}">Logs/Run</button>
-
-                                <a href="/admin/download_single/${row.id}" class="btn btn-sm btn-secondary">Download</a>
-                                <form action="/admin/delete_sub/${row.id}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
+                                <button type="button" class="btn btn-sm btn-info text-white view-btn" data-subid="${safeId}" data-filename="${safeFile}">View</button>
+                                <button type="button" class="btn btn-sm btn-warning eval-btn" data-subid="${safeId}" data-filename="${safeFile}">Logs/Run</button>
+                                <a href="/admin/download_single/${safeId}" class="btn btn-sm btn-secondary">Download</a>
+                                <form action="/admin/delete_sub/${safeId}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
                                     <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                                 </form>
                             `;

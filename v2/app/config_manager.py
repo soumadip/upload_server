@@ -1,30 +1,24 @@
-import json
 import os
+import json
+from werkzeug.utils import secure_filename
 
-def create_new_lab(app, lab_name, extensions):
-    """Updates config.json and generates the required backend directories."""
-    config_path = 'config.json'
+def create_new_lab(app, new_lab_name, extensions):
+    safe_lab = secure_filename(new_lab_name)
 
-    # 1. Update the JSON file permanently
-    with open(config_path, 'r+') as f:
+    # 1. Update the JSON config
+    config_path = os.path.join(app.root_path, '..', 'config.json')
+    with open(config_path, 'r') as f:
         config = json.load(f)
-        if 'lab_extensions' not in config:
-            config['lab_extensions'] = {}
 
-        config['lab_extensions'][lab_name] = extensions
+    if safe_lab not in config['lab_extensions']:
+        config['lab_extensions'][safe_lab] = extensions
 
-        f.seek(0)
-        json.dump(config, f, indent=4)
-        f.truncate()
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=4)
 
-    # 2. Update Flask's live memory so no restart is needed
-    if 'LAB_EXTENSIONS' not in app.config:
-        app.config['LAB_EXTENSIONS'] = {}
-    app.config['LAB_EXTENSIONS'][lab_name] = extensions
-
-    # 3. Create the test_cases directory automatically
-    os.makedirs(os.path.join('test_cases', lab_name), exist_ok=True)
-    return True
+    # 2. Create the physical directory for test cases
+    test_dir = os.path.join(app.root_path, '..', 'test_cases', safe_lab)
+    os.makedirs(test_dir, exist_ok=True)
 
 def set_active_lab(app, lab_name):
     config_path = 'config.json'

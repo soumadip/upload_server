@@ -28,7 +28,9 @@ def evaluate_submission(filepath, filename, active_lab, custom_input=None):
         compile_cmd = f"g++ -lm -pthread /sandbox/{filename} -o /tmp/out"
         run_cmd = "/tmp/out"
     elif ext == 'py':
-        compile_cmd = f"python3 -m py_compile /sandbox/{filename}"
+        # Uses ast.parse instead of py_compile so we never try to write a
+        # .pyc/__pycache__ into the read-only /sandbox mount.
+        compile_cmd = f"python3 -c \"import ast,sys; ast.parse(open(sys.argv[1]).read())\" /sandbox/{filename}"
         run_cmd = f"python3 /sandbox/{filename}"
     elif ext == 'sh':
         compile_cmd = f"bash -n /sandbox/{filename}"
@@ -96,29 +98,29 @@ def evaluate_submission(filepath, filename, active_lab, custom_input=None):
 def run_grader_task(app):
     print("\n[GRADER] ⚙️ Auto-grader background thread started!")
     with app.app_context():
-        conn = sqlite3.connect('lab_sessions.db')
+        conn = sqlite3.connect('lab_sessions.db', timeout=10)
         c = conn.cursor()
-
-        # NEW: Fetch assignment_id as well
-        c.execute("SELECT id, assignment_id, dept, filename FROM submissions WHERE status = 'Pending Evaluation'")
+        c.execute("SELECT id, dept, filename, assignment_id FROM submissions WHERE status = 'Pending Evaluation'")
         pending = c.fetchall()
 
         print(f"[GRADER] Found {len(pending)} submissions pending evaluation.")
 
-        for sub_id, assignment_id, dept, filename in pending:
-            print(f"[GRADER] 👉 Compiling/Running: {filename}...")
-
-            # NEW: Insert assignment_id into the path
+        for row in pending:
+            sub_id, dept, filename, assignment_id = row
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], assignment_id, dept, filename)
-
-            if not os.path.exists(filepath):
-                status, log = "File Missing", "System could not locate the file."
-            else:
-                status, log = evaluate_submission(filepath, filename, assignment_id)
-
-            c.execute("UPDATE submissions SET status = ?, output_log = ? WHERE id = ?", (status, log, sub_id))
+            print(f"[GRADER] 👉 Compiling/Running: {filename}...")
+            try:
+                if not os.path.exists(filepath):
+                    status, log = "File Missing", "System could not locate the file."
+                else:
+                    status, log = evaluate_submission(filepath, filename, assignment_id)
+                c.execute("UPDATE submissions SET status = ?, output_log = ? WHERE id = ?", (status, log, sub_id))
+            except Exception as e:
+                app.logger.error(f"Grader crashed on submission {sub_id}: {e}")
+                status = 'Grading Error'
+                c.execute("UPDATE submissions SET status = ?, output_log = ? WHERE id = ?", (status, str(e), sub_id))
+            
             conn.commit()
             print(f"[GRADER] ✅ Result for {filename}: {status}")
-
         conn.close()
         print("[GRADER] 🎉 Batch evaluation complete!\n")

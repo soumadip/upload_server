@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for, flash, current_app
-import os, sqlite3, secrets, time
+import os, sqlite3, secrets, time, re
 from werkzeug.utils import secure_filename
 from ..utils import allowed_file, format_roll, make_fname, process_fname
 from ..grader import evaluate_submission # <-- Import the secure sandboxed grader
@@ -13,13 +13,33 @@ def home():
 @student_bp.route('/setup', methods=['GET', 'POST'])
 def setup():
     if request.method == 'POST':
+        # 1. Extract inputs
+        dept = request.form.get('dept', '').strip()
+        enroll_no = request.form.get('enrollment_no', '').strip()
+        enroll_conf = request.form.get('enrollment_no_confirm', '').strip()
+        name = request.form.get('name', '').strip()
+
+        # 2. Strict Input Validation (Closes Path Traversal & Command Injection)
+        if dept not in current_app.config.get('VALID_DEPTS', []):
+            flash("Action forbidden: Invalid department selected.", "danger")
+            return redirect(url_for('student.setup'))
+
+        if enroll_no != enroll_conf:
+            flash("Enrollment numbers do not match.", "danger")
+            return redirect(url_for('student.setup'))
+
+        if not re.match(r"^[A-Za-z0-9]{1,20}$", enroll_no):
+            flash("Invalid enrollment number format. Alphanumeric only.", "danger")
+            return redirect(url_for('student.setup'))
+
+        # 3. Proceed with valid session
         session.permanent = True
         session['id'] = '[' + secrets.token_hex(2) + ']'
-        session['name'] = request.form['name'].strip()
-        session['dept'] = request.form['dept']
-        session['roll_no'] = format_roll(request.form['roll_no'])
-        session['enrollment_no'] = request.form['enrollment_no']
-        session['start_time'] = time.time()   
+        session['name'] = name
+        session['dept'] = dept
+        session['roll_no'] = format_roll(request.form.get('roll_no', ''))
+        session['enrollment_no'] = enroll_no
+        session['start_time'] = time.time()
         session['end_time'] = session['start_time'] + current_app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()
 
         flash("You are now logged in")
