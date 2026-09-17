@@ -62,7 +62,9 @@ def evaluate_submission(filepath, filename, active_lab, custom_input=None):
             return "Success", "Syntax/Compilation OK. No test cases provided."
 
         passed = 0
+        total = len(input_files)
         full_log = ""
+
         for in_file in input_files:
             test_num = in_file.split('_')[1].split('.')[0]
             with open(os.path.join(test_dir, in_file), 'r') as f: test_input = f.read()
@@ -71,18 +73,22 @@ def evaluate_submission(filepath, filename, active_lab, custom_input=None):
             res = subprocess.run(docker_base_cmd + ["bash", "-c", chained_cmd], input=test_input, text=True, capture_output=True, timeout=3)
 
             if res.returncode != 0:
-                full_log += f"Test {test_num} Runtime Error:\n{res.stderr}\n\n"
-                return f"Runtime Error (Test {test_num})", full_log
+                full_log += f"--- Test {test_num} Runtime Error ---\n{res.stderr.strip()}\n\n"
+                continue  # Skip to the next test case instead of halting
 
             student_output = res.stdout.strip().replace('\r', '')
             if student_output != expected:
                 full_log += f"--- Test {test_num} Failed ---\nINPUT:\n{test_input}\n\nEXPECTED:\n{expected}\n\nGOT:\n{student_output}\n\n"
-                return f"Failed Test {test_num}", full_log
+                continue  # Skip to the next test case instead of halting
 
-            full_log += f"Test {test_num} Passed.\n"
+            full_log += f"--- Test {test_num} Passed ---\n\n"
             passed += 1
 
-        return f"Passed {passed}/{len(input_files)}", full_log
+        # Final Status Calculation
+        if passed == total:
+            return f"Passed {passed}/{total}", full_log
+        else:
+            return f"Failed ({passed}/{total})", full_log
 
     except subprocess.TimeoutExpired:
         return "Time Limit Exceeded", "Process killed. Infinite loop or timeout detected."
@@ -92,19 +98,23 @@ def run_grader_task(app):
     with app.app_context():
         conn = sqlite3.connect('lab_sessions.db')
         c = conn.cursor()
-        c.execute("SELECT id, dept, filename FROM submissions WHERE status = 'Pending Evaluation'")
+
+        # NEW: Fetch assignment_id as well
+        c.execute("SELECT id, assignment_id, dept, filename FROM submissions WHERE status = 'Pending Evaluation'")
         pending = c.fetchall()
 
         print(f"[GRADER] Found {len(pending)} submissions pending evaluation.")
 
-        for sub_id, dept, filename in pending:
+        for sub_id, assignment_id, dept, filename in pending:
             print(f"[GRADER] 👉 Compiling/Running: {filename}...")
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], dept, filename)
+
+            # NEW: Insert assignment_id into the path
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], assignment_id, dept, filename)
 
             if not os.path.exists(filepath):
                 status, log = "File Missing", "System could not locate the file."
             else:
-                status, log = evaluate_submission(filepath, filename, app.config['ACTIVE_LAB'])
+                status, log = evaluate_submission(filepath, filename, assignment_id)
 
             c.execute("UPDATE submissions SET status = ?, output_log = ? WHERE id = ?", (status, log, sub_id))
             conn.commit()

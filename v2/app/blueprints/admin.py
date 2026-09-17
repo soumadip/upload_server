@@ -1,10 +1,12 @@
 import hmac
-from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, Response, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, send_from_directory, Response, redirect, url_for, jsonify
 import sqlite3, os, zipfile, io, csv, json
 import json
 import threading
 from flask import current_app
 from ..grader import run_grader_task
+from ..config_manager import create_new_lab, set_active_lab
+import os
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -40,19 +42,27 @@ def dashboard():
 
 @admin_bp.route('/download_single/<int:sub_id>')
 def download_single(sub_id):
-    if not session.get('is_admin'): abort(403)
+    if not session.get('is_admin'): return redirect(url_for('admin.dashboard'))
 
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT dept, filename FROM submissions WHERE id = ?", (sub_id,))
+    c.execute("SELECT assignment_id, dept, filename FROM submissions WHERE id = ?", (sub_id,))
     record = c.fetchone()
     conn.close()
 
     if record:
-        dept, filename = record
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
+        db_lab, dept, filename = record
+
+        # 1. Try the new nested path first
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], db_lab, dept, filename)
+
+        # 2. Fallback to the legacy path
+        if not os.path.exists(filepath):
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
+
         if os.path.exists(filepath):
-            return send_file(filepath, as_attachment=True, download_name=filename)
+            # Using absolute path perfectly bypasses Flask's directory restrictions
+            return send_file(os.path.abspath(filepath), as_attachment=True, download_name=filename)
 
     flash('File not found.', 'danger')
     return redirect(url_for('admin.dashboard'))
@@ -86,25 +96,31 @@ def export_csv():
 
 @admin_bp.route('/view/<int:sub_id>')
 def view_file(sub_id):
-    if not session.get('is_admin'): abort(403)
+    if not session.get('is_admin'): return "Unauthorized", 403
 
-    # Look up the exact file path from the database securely
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT dept, filename FROM submissions WHERE id = ?", (sub_id,))
+    c.execute("SELECT assignment_id, dept, filename FROM submissions WHERE id = ?", (sub_id,))
     record = c.fetchone()
     conn.close()
 
-    if record:
-        dept, filename = record
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as f:
-                content = f.read()
-            # Send as raw text so it renders right in the browser tab
-            return Response(content, mimetype='text/plain')
+    if not record: return "Not found", 404
 
-    return abort(404)
+    db_lab, dept, filename = record
+
+    # 1. Try the new nested path first
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], db_lab, dept, filename)
+
+    # 2. Fallback to the legacy path
+    if not os.path.exists(filepath):
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
+
+    if os.path.exists(filepath):
+        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+            # We return plain text directly so JavaScript doesn't say [object Object]
+            return f.read()
+
+    return "File missing on server", 404
 
 @admin_bp.route('/delete_sub/<int:sub_id>', methods=['POST'])
 def delete_submission(sub_id):
@@ -112,18 +128,24 @@ def delete_submission(sub_id):
 
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT dept, filename FROM submissions WHERE id = ?", (sub_id,))
+    c.execute("SELECT assignment_id, dept, filename FROM submissions WHERE id = ?", (sub_id,))
     record = c.fetchone()
 
     if record:
-        dept, filename = record
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
+        db_lab, dept, filename = record
 
-        # 1. Delete the physical file
+        # 1. Try the new nested path first
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], db_lab, dept, filename)
+
+        # 2. Fallback to the legacy path
+        if not os.path.exists(filepath):
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
+
+        # 3. Delete the physical file
         if os.path.exists(filepath):
             os.remove(filepath)
 
-        # 2. Delete the database record
+        # 4. Delete the database record
         c.execute("DELETE FROM submissions WHERE id = ?", (sub_id,))
         conn.commit()
         flash('File and record deleted successfully.', 'success')
@@ -174,33 +196,88 @@ def trigger_grader():
 @admin_bp.route('/api/grade_single/<int:sub_id>', methods=['POST'])
 def grade_single(sub_id):
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
-
-    # Check if this is a custom execution or a fetch for existing logs
     custom_input = request.json.get('custom_input', None)
 
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT dept, filename, output_log, status FROM submissions WHERE id = ?", (sub_id,))
+
+    # NEW: Fetch assignment_id
+    c.execute("SELECT assignment_id, dept, filename, output_log, status FROM submissions WHERE id = ?", (sub_id,))
     record = c.fetchone()
 
     if not record:
         conn.close()
         return jsonify({'error': 'Not found'}), 404
 
-    dept, filename, db_log, db_status = record
+    db_lab, dept, filename, db_log, db_status = record
 
-    # If no custom input is provided, just return the existing log from the DB
     if custom_input is None:
         conn.close()
         return jsonify({'status': db_status, 'log': db_log or 'No logs available. Run evaluation first.'})
 
-    # If custom input IS provided, run it live!
-    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, filename)
-    active_lab = current_app.config['ACTIVE_LAB']
+    # NEW: Construct path using db_lab
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], db_lab, dept, filename)
 
     from ..grader import evaluate_submission
-    status, log = evaluate_submission(filepath, filename, active_lab, custom_input)
+    status, log = evaluate_submission(filepath, filename, db_lab, custom_input)
 
-    # We don't overwrite their official grade in the DB for a custom test, we just return it to the teacher
     conn.close()
     return jsonify({'status': status, 'log': log})
+
+@admin_bp.route('/api/create_lab', methods=['POST'])
+def api_create_lab():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    data = request.json
+    if data.get('lab_name'):
+        create_new_lab(current_app, data['lab_name'], data.get('extensions', ['c', 'cpp']))
+        return jsonify({'status': 'success', 'message': f"Lab {data['lab_name']} initialized."})
+    return jsonify({'error': 'Invalid data'}), 400
+
+@admin_bp.route('/api/add_test_case_manual', methods=['POST'])
+def api_add_test_case_manual():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    lab_name = request.json.get('lab_name')
+    test_dir = os.path.join('test_cases', lab_name)
+    os.makedirs(test_dir, exist_ok=True) # Ensure dir exists
+
+    # Auto-increment the test case number
+    existing = [f for f in os.listdir(test_dir) if f.startswith('input_')]
+    next_num = len(existing) + 1
+
+    with open(os.path.join(test_dir, f'input_{next_num}.txt'), 'w') as f: f.write(request.json.get('input_data', ''))
+    with open(os.path.join(test_dir, f'output_{next_num}.txt'), 'w') as f: f.write(request.json.get('output_data', ''))
+
+    return jsonify({'status': 'success', 'message': f'Saved as Test Case {next_num}'})
+
+@admin_bp.route('/api/upload_test_cases', methods=['POST'])
+def api_upload_test_cases():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    lab_name = request.form.get('lab_name')
+    test_dir = os.path.join('test_cases', lab_name)
+    os.makedirs(test_dir, exist_ok=True)
+
+    count = 0
+    for file in request.files.getlist('files'):
+        if file and file.filename.endswith('.txt'):
+            safe_name = secure_filename(file.filename) # Ensures it saves as input_1.txt safely
+            file.save(os.path.join(test_dir, safe_name))
+            count += 1
+
+    return jsonify({'status': 'success', 'message': f'Uploaded {count} files to {lab_name}'})
+
+@admin_bp.route('/api/get_labs', methods=['GET'])
+def api_get_labs():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    return jsonify({
+        'active_lab': current_app.config.get('ACTIVE_LAB'),
+        'labs': list(current_app.config.get('LAB_EXTENSIONS', {}).keys())
+    })
+
+@admin_bp.route('/api/set_active_lab', methods=['POST'])
+def api_set_active_lab():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    lab_name = request.json.get('lab_name')
+    if lab_name in current_app.config.get('LAB_EXTENSIONS', {}):
+        set_active_lab(current_app, lab_name)
+        return jsonify({'status': 'success', 'message': f'Active lab changed to {lab_name}'})
+    return jsonify({'error': 'Invalid lab name'}), 400

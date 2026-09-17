@@ -44,7 +44,10 @@ def upload():
             if file and allowed_file(file.filename):
                 safe_filename = secure_filename(file.filename)
                 mod_fname = make_fname(safe_filename, session)
-                savefile = os.path.join(current_app.config['UPLOAD_FOLDER'], session['dept'], mod_fname)
+                save_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], active_lab, session['dept'])
+                os.makedirs(save_dir, exist_ok=True)
+
+                savefile = os.path.join(save_dir, mod_fname)
                 file.save(savefile)
 
                 # CRITICAL FIX 1: Run the secure Docker sandbox immediately on upload
@@ -78,6 +81,37 @@ def upload():
     allowed_exts = current_app.config['LAB_EXTENSIONS'].get(active_lab, ['c', 'cpp'])
     accept_string = ",".join([f".{ext}" for ext in allowed_exts])
 
+    # --- FETCH FILES (Inside upload() route) ---
+    conn = sqlite3.connect('lab_sessions.db')
+    c = conn.cursor()
+    # Removed the assignment_id filter to fetch all historical files
+    c.execute("SELECT filename, status, timestamp, assignment_id FROM submissions WHERE roll_no = ? AND enrollment_no = ? ORDER BY timestamp DESC",
+              (session['roll_no'], session['enrollment_no']))
+    records = c.fetchall()
+    conn.close()
+
+    c_files = []
+    p_files = []
+    historical_files = []
+
+    for r in records:
+        file_info = {'original': process_fname(r[0]), 'full': r[0], 'status': r[1], 'time': r[2], 'lab': r[3]}
+
+        # Sort by active lab vs historical labs
+        if r[3] == active_lab:
+            if session['id'] in r[0]:
+                c_files.append(file_info)
+            else:
+                p_files.append(file_info)
+        else:
+            historical_files.append(file_info)
+
+    allowed_exts = current_app.config['LAB_EXTENSIONS'].get(active_lab, ['c', 'cpp'])
+    accept_string = ",".join([f".{ext}" for ext in allowed_exts])
+
+    # Pass the new historical_files array to the template
+    return render_template('upload.html', curr_files=c_files, prev_files=p_files, historical_files=historical_files, accept_string=accept_string)
+
     return render_template('upload.html', curr_files=c_files, prev_files=p_files, accept_string=accept_string)
 
 
@@ -86,7 +120,7 @@ def delete_file(filename):
     if 'enrollment_no' not in session:
         return redirect(url_for('student.setup'))
 
-    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], session['dept'], filename)
+    #filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], session['dept'], filename)
 
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
@@ -101,6 +135,9 @@ def delete_file(filename):
         return redirect(url_for('student.upload'))
 
     db_lab, db_roll, db_enroll = record
+
+    # NEW: Construct the path using the db_lab
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], db_lab, session['dept'], filename)
 
     if db_roll != session['roll_no'] or db_enroll != session['enrollment_no']:
         conn.close()
@@ -154,11 +191,25 @@ def view_report(filename):
 
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
-    c.execute("SELECT output_log FROM submissions WHERE filename = ? AND roll_no = ? AND enrollment_no = ?",
+    # Fetch both the log AND the status
+    c.execute("SELECT output_log, status FROM submissions WHERE filename = ? AND roll_no = ? AND enrollment_no = ?",
               (filename, session['roll_no'], session['enrollment_no']))
     record = c.fetchone()
     conn.close()
 
     if record:
-        return record[0] or "Evaluation pending or no logs generated."
+        db_log, db_status = record
+
+        if not db_log:
+            return "Evaluation pending or no logs generated."
+
+        # 1. If it's a compiler error, give them the full error log so they can debug
+        if db_status in ['Compilation Error', 'Syntax Error']:
+            return f"Status: {db_status}\n\n{db_log}"
+
+        # 2. If it reached the test cases, hide the inputs/outputs to prevent cheating
+        return (f"Final Evaluation Status: {db_status}\n\n"
+                f"Compilation successful.\n"
+                f"Detailed test case inputs and outputs are hidden to maintain academic integrity.")
+
     return "Report not found.", 404

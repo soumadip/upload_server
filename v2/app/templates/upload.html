@@ -55,7 +55,12 @@
         </div>
 
         <!-- Current Session Submissions -->
-        <h4 class="fw-bold mb-3">Current Session Files</h4>
+	<div class="d-flex justify-content-between align-items-end mb-3">
+            <h4 class="fw-bold m-0">Current Session Files</h4>
+            <button type="button" onclick="window.location.href = window.location.pathname;" class="btn btn-sm btn-info text-white fw-bold shadow-sm">
+                🔄 Refresh Status
+            </button>
+        </div>
         <div class="card shadow-sm border-0 mb-5">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -110,6 +115,8 @@
                         <th>Filename</th>
                         <th>Status</th>
                         <th>Time</th>
+                        <!-- NEW: Added Action Column -->
+                        <th class="text-end">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -117,21 +124,89 @@
                     <tr>
                         <td><code>{{ file.original }}</code></td>
                         <td>
-                            {% if "Success" in file.status %}
+                            {% if file.status == 'Success' or 'Passed' in file.status %}
                                 <span class="badge bg-success opacity-75">{{ file.status }}</span>
+                            {% elif file.status == 'Uploaded' %}
+                                <span class="badge bg-secondary opacity-75">{{ file.status }}</span>
+                            {% elif file.status == 'Pending Evaluation' %}
+                                <span class="badge bg-warning text-dark opacity-75">{{ file.status }}</span>
                             {% else %}
                                 <span class="badge bg-danger opacity-75">{{ file.status }}</span>
                             {% endif %}
                         </td>
                         <td class="text-muted small">{{ file.time }}</td>
+                        <!-- NEW: Added Evaluation Buttons -->
+                        <td class="text-end">
+                            {% if file.status == 'Uploaded' %}
+                                <form method="POST" action="{{ url_for('student.request_eval', filename=file.full) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-primary">Request Evaluation</button>
+                                </form>
+                            {% elif file.status == 'Pending Evaluation' %}
+                                <button class="btn btn-sm btn-warning" disabled>Queued</button>
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="3" class="text-center text-muted py-4">No previous historical submissions found.</td></tr>
+                    <!-- Updated colspan to 4 -->
+                    <tr><td colspan="4" class="text-center text-muted py-4">No previous historical submissions found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
+
+    <!-- Historical Submissions (Past Labs) -->
+        {% if historical_files %}
+        <div class="mt-5">
+            <h5 class="fw-bold text-secondary">📁 Past Lab Sessions</h5>
+            <div class="table-responsive bg-white rounded shadow-sm border">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Lab Session</th>
+                            <th>Filename</th>
+                            <th>Status</th>
+                            <th>Time</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in historical_files %}
+                        <tr>
+                            <td><span class="badge bg-secondary">{{ file.lab }}</span></td>
+                            <td class="font-monospace text-muted">{{ file.original }}</td>
+                            <td>
+                                {% if file.status == 'Success' or 'Passed' in file.status %}
+                                    <span class="badge bg-success">{{ file.status }}</span>
+                                {% elif file.status == 'Uploaded' %}
+                                    <span class="badge bg-secondary">{{ file.status }}</span>
+                                {% elif file.status == 'Pending Evaluation' %}
+                                    <span class="badge bg-warning text-dark">{{ file.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ file.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted">{{ file.time }}</td>
+                            <td class="text-end">
+                                <!-- Re-Evaluation and Report Buttons (No Delete) -->
+                                {% if file.status == 'Uploaded' %}
+                                <form method="POST" action="{{ url_for('student.request_eval', filename=file.full) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-primary">Request Evaluation</button>
+                                </form>
+                                {% elif file.status == 'Pending Evaluation' %}
+                                <button class="btn btn-sm btn-warning" disabled>Queued</button>
+                                {% else %}
+                                <button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
 
     <!-- Report Modal -->
 	<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">

@@ -52,6 +52,10 @@
                         <p class="text-muted m-0 fs-5">Active Session: <strong class="text-primary">{{ active_lab }}</strong></p>
                     </div>
                     <div class="mt-3 mt-md-0 d-flex gap-2">
+			<!-- THE NEW LAB MANAGER BUTTON -->
+		        <button type="button" class="btn btn-secondary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#labManagerModal">🛠️ Lab Manager</button>
+			<!-- NEW REFRESH BUTTON -->
+                        <button type="button" id="btnRefreshTable" class="btn btn-info shadow-sm fw-bold text-white">🔄 Refresh Status</button>
 			<!-- NEW GRADER BUTTON -->
                         <form action="{{ url_for('admin.trigger_grader') }}" method="POST" class="m-0">
                             <button type="submit" class="btn btn-warning shadow-sm fw-bold">⚙️ Run Auto-Grader</button>
@@ -159,6 +163,78 @@
             </div>
         </div>
     </div>
+
+    <!-- Lab Manager Modal -->
+<div class="modal fade" id="labManagerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">🛠️ Lab Configuration Manager</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Nav Tabs -->
+                <ul class="nav nav-tabs mb-3" id="labTabs" role="tablist">
+                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#activeSessionTab">1. Active Session</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createLab">2. Create Lab</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#manualTest">3. Manual Test</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#uploadTest">4. Bulk Upload</a></li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Tab 1: Active Session -->
+                    <div class="tab-pane fade show active" id="activeSessionTab">
+                        <h6 class="fw-bold mb-3">Current Active Lab: <span id="displayActiveLab" class="badge bg-success">Loading...</span></h6>
+                        <label class="fw-bold">Switch Active Lab To:</label>
+                        <div class="d-flex gap-2 mt-2">
+                            <select id="switchActiveLabSelect" class="form-select lab-dropdown"></select>
+                            <button id="btnSwitchLab" class="btn btn-warning fw-bold shadow-sm">Switch</button>
+                        </div>
+                        <p class="text-danger small mt-2">⚠️ Warning: Switching the active lab will change the upload destination and expected extensions for all students instantly.</p>
+                    </div>
+
+                    <!-- Tab 2: Create Lab -->
+                    <div class="tab-pane fade" id="createLab">
+                        <input type="text" id="newLabName" class="form-control mb-3" placeholder="e.g., automata_lab_02">
+                        <label class="fw-bold mb-2">Allowed Languages:</label><br>
+                        <input type="checkbox" class="lang-check" value="c" checked> C &nbsp;
+                        <input type="checkbox" class="lang-check" value="cpp" checked> C++ &nbsp;
+                        <input type="checkbox" class="lang-check" value="py"> Python &nbsp;
+                        <input type="checkbox" class="lang-check" value="java"> Java &nbsp;
+                        <input type="checkbox" class="lang-check" value="sh"> Bash
+                        <button id="btnCreateLab" class="btn btn-success w-100 mt-4">Initialize Lab</button>
+                    </div>
+
+                    <!-- Tab 3: Manual Test Case -->
+                    <div class="tab-pane fade" id="manualTest">
+                        <label class="fw-bold mb-1">Target Lab:</label>
+                        <select id="manualLabName" class="form-select lab-dropdown mb-3"></select>
+                        <div class="row">
+                            <div class="col-6">
+                                <label>Standard Input:</label>
+                                <textarea id="manualInput" class="form-control font-monospace" rows="5"></textarea>
+                            </div>
+                            <div class="col-6">
+                                <label>Expected Output:</label>
+                                <textarea id="manualOutput" class="form-control font-monospace" rows="5"></textarea>
+                            </div>
+                        </div>
+                        <button id="btnSaveManual" class="btn btn-primary w-100 mt-3">Save as Next Test Case</button>
+                    </div>
+
+                    <!-- Tab 4: Bulk Upload -->
+                    <div class="tab-pane fade" id="uploadTest">
+                        <div class="alert alert-info small">Select all relevant text files (e.g., <code>input_1.txt</code>, <code>output_1.txt</code>) at once.</div>
+                        <label class="fw-bold mb-1">Target Lab:</label>
+                        <select id="uploadLabName" class="form-select lab-dropdown mb-3"></select>
+                        <input type="file" id="bulkTestFiles" class="form-control mb-3" multiple accept=".txt">
+                        <button id="btnUploadBulk" class="btn btn-primary w-100">Upload All Files</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -268,18 +344,15 @@
                 }
             });
 
-	    // Smart Polling: Check total record count every 5 seconds
-            var lastCount = -1;
-            setInterval(function () {
-                $.get('/admin/api/submissions', function(data) {
-                    var currentCount = data.length;
-                    if (lastCount !== -1 && currentCount !== lastCount) {
-                        // Only reload the table if a new row has been added or deleted!
-                        table.ajax.reload(null, false);
-                    }
-                    lastCount = currentCount;
-                });
-            }, 5000);
+	    // Manual Refresh Button Logic (Replaces setInterval)
+            $('#btnRefreshTable').click(function() {
+                var btn = $(this);
+                btn.text('⏳ Refreshing...');
+                // Reloads DataTables via AJAX without resetting pagination/sorting
+                table.ajax.reload(function() {
+                    btn.text('🔄 Refresh Status');
+                }, false); 
+            });
 
             // Modal Logic
             $('#submissionsTable').on('click', '.view-btn', function() {
@@ -350,6 +423,80 @@
                         btn.prop('disabled', false).text('⚙️ Run with Custom Input');
                     }
                 });
+            });
+        });
+
+	// Dynamically load labs into all dropdowns
+        function loadLabs() {
+            $.get('/admin/api/get_labs', function(data) {
+                $('#displayActiveLab').text(data.active_lab);
+                var options = '';
+                data.labs.forEach(function(lab) {
+                    var sel = (lab === data.active_lab) ? ' selected' : '';
+                    options += `<option value="${lab}"${sel}>${lab}</option>`;
+                });
+                $('.lab-dropdown').html(options); // Populates all 3 dropdowns at once!
+            });
+        }
+
+        // Trigger population when the modal opens
+        $('#labManagerModal').on('show.bs.modal', function () {
+            loadLabs();
+        });
+
+        // Handle Switching the Active Lab
+        $('#btnSwitchLab').click(function() {
+            var btn = $(this);
+            btn.prop('disabled', true).text('Switching...');
+            $.ajax({
+                url: '/admin/api/set_active_lab', type: 'POST', contentType: 'application/json',
+                data: JSON.stringify({ lab_name: $('#switchActiveLabSelect').val() }),
+                success: function(r) { 
+                    alert(r.message);
+                    location.reload(); // Reload the whole page so the dashboard title updates
+                }
+            });
+        });
+
+	// Create Lab
+        $('#btnCreateLab').click(function() {
+            var exts = [];
+            $('.lang-check:checked').each(function() { exts.push($(this).val()); });
+            $.ajax({
+                url: '/admin/api/create_lab', type: 'POST', contentType: 'application/json',
+                data: JSON.stringify({ lab_name: $('#newLabName').val(), extensions: exts }),
+                success: function(r) { alert(r.message); $('#newLabName').val(''); }
+            });
+        });
+
+        // Manual Test Case
+        $('#btnSaveManual').click(function() {
+            $.ajax({
+                url: '/admin/api/add_test_case_manual', type: 'POST', contentType: 'application/json',
+                data: JSON.stringify({
+                    lab_name: $('#manualLabName').val(),
+                    input_data: $('#manualInput').val(),
+                    output_data: $('#manualOutput').val()
+                }),
+                success: function(r) { 
+                    alert(r.message); 
+                    $('#manualInput').val(''); 
+                    $('#manualOutput').val(''); 
+                }
+            });
+        });
+
+        // Bulk Upload
+        $('#btnUploadBulk').click(function() {
+            var formData = new FormData();
+            formData.append('lab_name', $('#uploadLabName').val());
+            var files = $('#bulkTestFiles')[0].files;
+            for(var i=0; i<files.length; i++) { formData.append('files', files[i]); }
+            
+            $.ajax({
+                url: '/admin/api/upload_test_cases', type: 'POST', processData: false, contentType: false,
+                data: formData,
+                success: function(r) { alert(r.message); $('#bulkTestFiles').val(''); }
             });
         });
     </script>
