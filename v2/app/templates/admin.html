@@ -3,30 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <title>Teacher Dashboard</title>
-    <!-- Bootstrap 5 & DataTables CSS -->
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.bootstrap5.min.css" rel="stylesheet">
-
-    <!-- NEW: Highlight.js Theme -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; }
-        .table-container { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-top: 20px;}
-        .status-Success { color: #198754; font-weight: bold; }
-        .status-Compilation, .status-Timeout { color: #dc3545; font-weight: bold; }
-        .dtrg-group th { background-color: #e9ecef !important; font-weight: bold; }
-        #fileContentCode { font-size: 14px; white-space: pre-wrap; word-wrap: break-word; }
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #334155; }
+        
+        /* Modern Cards */
+        .table-container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-top: 15px; border: 1px solid #e2e8f0; }
+        .stat-card { background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.02); transition: transform 0.2s;}
+        .stat-card:hover { transform: translateY(-2px); }
+        .stat-border-primary { border-left: 4px solid #3b82f6; }
+        .stat-border-success { border-left: 4px solid #10b981; }
+        .stat-border-danger { border-left: 4px solid #ef4444; }
+        .stat-border-warning { border-left: 4px solid #f59e0b; }
+
+        /* Unified Buttons */
+        .btn { font-weight: 500; letter-spacing: 0.2px; border-radius: 6px; }
+        .btn-outline-secondary { border-color: #cbd5e1; color: #475569; background-color: #fff; }
+        .btn-outline-secondary:hover { background-color: #f8fafc; color: #0f172a; }
+
+        /* Clean DataTables */
+        table.dataTable { border-collapse: collapse !important; }
+        .table>thead { background-color: #f8fafc; }
+        .table>thead>tr>th { border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 15px; padding-bottom: 15px; border-top: none;}
+        .table>tbody>tr>td { vertical-align: middle; border-bottom: 1px solid #f1f5f9; padding: 12px 10px; }
+        .dtrg-group th { background-color: #f1f5f9 !important; font-weight: 600; color: #475569; border-bottom: 1px solid #e2e8f0;}
+        
+        /* Modern Status Badges */
+        .status-Success { background-color: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 50rem; font-size: 0.85rem; font-weight: 500; display: inline-block;}
+        .status-Compilation, .status-Timeout { background-color: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 50rem; font-size: 0.85rem; font-weight: 500; display: inline-block;}
+        
+        /* Modals */
+        .modal-content { border: 0; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .modal-header { border-bottom: 1px solid #e2e8f0; }
+        #fileContentCode { font-size: 14px; border-radius: 8px; }
     </style>
 </head>
 <body>
     <div class="container-fluid py-4 px-4 px-md-5">
         
-        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show">
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show rounded-3 border-0 shadow-sm">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -37,100 +60,123 @@
         {% if not logged_in %}
             <div class="row justify-content-center mt-5">
                 <div class="col-md-4 table-container text-center">
-                    <h3 class="mb-4">Teacher Dashboard</h3>
+                    <h3 class="mb-4 fw-bold text-dark">Teacher Dashboard</h3>
                     <form method="POST">
-                        <div class="mb-3">
-                            <label class="form-label">Enter Admin PIN:</label>
-                            <input type="password" name="pin" class="form-control text-center" required>
+                        <div class="mb-3 text-start">
+                            <label class="form-label fw-semibold text-secondary small text-uppercase">Enter Admin PIN:</label>
+                            <input type="password" name="pin" class="form-control text-center fs-4 letter-spacing-2" required>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 shadow-sm">Login to Dashboard</button>
                     </form>
                 </div>
             </div>
         {% else %}
             <div class="table-container">
+                <!-- Header Area -->
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 pb-3 border-bottom">
                     <div>
-                        <h2 class="m-0">Teacher Dashboard</h2>
-                        <p class="text-muted m-0 fs-5">Active Session: <strong class="text-primary">{{ active_lab }}</strong></p>
+                        <h2 class="m-0 fw-bold text-dark">Teacher Dashboard</h2>
+                        <p class="text-muted m-0 fs-6 mt-1">Active Session: <span class="badge bg-primary bg-opacity-10 text-primary px-2 py-1 ms-1">{{ active_lab }}</span></p>
                     </div>
-                    <div class="mt-3 mt-md-0 d-flex gap-2">
-			<!-- THE NEW LAB MANAGER BUTTON -->
-		        <button type="button" class="btn btn-secondary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#labManagerModal">🛠️ Lab Manager</button>
-			<!-- NEW REFRESH BUTTON -->
-                        <!-- REFRESH & LIVE TOGGLE -->
-                        <div class="d-flex align-items-center bg-light border rounded px-2 py-1 shadow-sm">
-                            <button type="button" id="btnRefreshTable" class="btn btn-sm btn-info fw-bold text-white me-3">🔄 Refresh</button>
+                    <div class="mt-3 mt-md-0 d-flex gap-2 flex-wrap align-items-center">
+                        
+                        <!-- REFRESH & LIVE TOGGLE (Modern styling) -->
+                        <div class="d-flex align-items-center border rounded-3 px-3 py-1 bg-white">
+                            <button type="button" id="btnRefreshTable" class="btn btn-sm btn-light text-secondary border-0 fw-bold me-3">🔄 Refresh</button>
                             <div class="form-check form-switch m-0">
                                 <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
-                                <label class="form-check-label text-muted small fw-bold mt-1" for="autoRefreshToggle">Live</label>
+                                <label class="form-check-label text-muted small fw-bold mt-1 ms-1" for="autoRefreshToggle">Live</label>
                             </div>
                         </div>
-			<!-- NEW GRADER BUTTON -->
-                        <form action="{{ url_for('admin.trigger_grader') }}" method="POST" class="m-0">
-                            <button type="submit" class="btn btn-warning shadow-sm fw-bold">⚙️ Run Auto-Grader</button>
-                        </form>
 
-                        <a href="{{ url_for('admin.download_zip') }}" class="btn btn-primary shadow-sm">⬇ Download All (.zip)</a>
-                        <a href="{{ url_for('admin.export_csv') }}" class="btn btn-success shadow-sm">📄 Export to CSV</a>
-                        <form action="{{ url_for('student.logout') }}" method="POST" class="m-0">
-                            <button type="submit" class="btn btn-outline-danger shadow-sm">Logout</button>
+                        <!-- MANAGEMENT TOOLS -->
+                        <!-- SMART LOCK BUTTON (Reads current config state) -->
+                        {% if config.get('SUBMISSIONS_OPEN', True) %}
+                            <button type="button" id="btnToggleSubmissions" class="btn btn-outline-danger shadow-sm bg-white">🔒 Lock Lab</button>
+                        {% else %}
+                            <button type="button" id="btnToggleSubmissions" class="btn btn-success shadow-sm">🔓 Unlock Lab</button>
+                        {% endif %}
+
+                        <button type="button" id="btnPlagiarism" class="btn btn-outline-dark shadow-sm bg-white">🕵️ Plagiarism</button>
+                        
+                        <div class="dropdown d-inline-block">
+                            <button class="btn btn-outline-secondary dropdown-toggle shadow-sm" type="button" data-bs-toggle="dropdown">
+                                📦 Bulk Actions
+                            </button>
+                            <ul class="dropdown-menu border-0 shadow">
+                                <li><a class="dropdown-item fw-medium" href="#" id="bulkRegradeBtn">⚙️ Re-Grade Selected</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger fw-medium" href="#" id="bulkDeleteBtn">🗑️ Delete Selected</a></li>
+                            </ul>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#labManagerModal">🛠️ Config</button>
+
+                        <!-- PRIMARY ACTIONS -->
+                        <form action="{{ url_for('admin.trigger_grader') }}" method="POST" class="m-0 ms-2">
+                            <button type="submit" class="btn btn-primary shadow-sm">⚙️ Run Grader</button>
+                        </form>
+                        <a href="{{ url_for('admin.download_zip') }}" class="btn btn-dark shadow-sm">⬇ .zip</a>
+                        <a href="{{ url_for('admin.export_csv') }}" class="btn btn-outline-success shadow-sm bg-white">📄 .csv</a>
+                        
+                        <form action="{{ url_for('student.logout') }}" method="POST" class="m-0 ms-2">
+                            <button type="submit" class="btn btn-light border shadow-sm text-danger">Logout</button>
                         </form>
                     </div>
                 </div>
 
-                <!-- NEW: Live Summary Stats -->
+                <!-- Modern Summary Stats -->
                 <div class="row mb-4" id="summaryStats">
                     <div class="col-md-3">
-                        <div class="card bg-primary text-white shadow-sm border-0">
-                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-0 opacity-75">Total Submissions</h6>
-                                    <h3 class="fw-bold mb-0" id="statTotal">0</h3>
-                                </div>
-                                <span class="fs-1 opacity-50">📁</span>
+                        <div class="stat-card stat-border-primary p-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1 text-muted fw-semibold small text-uppercase">Total Submissions</h6>
+                                <h3 class="fw-bold mb-0 text-dark" id="statTotal">0</h3>
+                            </div>
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/></svg>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-success text-white shadow-sm border-0">
-                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-0 opacity-75">Passed Everything</h6>
-                                    <h3 class="fw-bold mb-0" id="statPassed">0</h3>
-                                </div>
-                                <span class="fs-1 opacity-50">✅</span>
+                        <div class="stat-card stat-border-success p-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1 text-muted fw-semibold small text-uppercase">Passed All Tests</h6>
+                                <h3 class="fw-bold mb-0 text-dark" id="statPassed">0</h3>
+                            </div>
+                            <div class="bg-success bg-opacity-10 text-success rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-danger text-white shadow-sm border-0">
-                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-0 opacity-75">Failed / Errors</h6>
-                                    <h3 class="fw-bold mb-0" id="statFailed">0</h3>
-                                </div>
-                                <span class="fs-1 opacity-50">⚠️</span>
+                        <div class="stat-card stat-border-danger p-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1 text-muted fw-semibold small text-uppercase">Failed / Errors</h6>
+                                <h3 class="fw-bold mb-0 text-dark" id="statFailed">0</h3>
+                            </div>
+                            <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-warning text-dark shadow-sm border-0">
-                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-0 opacity-75">Pending Eval</h6>
-                                    <h3 class="fw-bold mb-0" id="statPending">0</h3>
-                                </div>
-                                <span class="fs-1 opacity-50">⏳</span>
+                        <div class="stat-card stat-border-warning p-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1 text-muted fw-semibold small text-uppercase">Pending Eval</h6>
+                                <h3 class="fw-bold mb-0 text-dark" id="statPending">0</h3>
+                            </div>
+                            <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 45px; height: 45px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Data Table -->
-                <table id="submissionsTable" class="table table-striped table-hover table-bordered align-middle" style="width:100%">
-                    <thead class="table-dark">
+                <table id="submissionsTable" class="table table-hover align-middle" style="width:100%">
+                    <thead>
                         <tr>
+                            <th class="text-center" style="width: 40px;"><input type="checkbox" id="selectAllBoxes" class="form-check-input border-secondary"></th>
                             <th>ID</th>
                             <th>Roll No</th>
                             <th>Enrollment No</th>
@@ -142,30 +188,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for sub in subs %}
-                        <tr>
-                            <td>{{ sub[0] }}</td>
-                            <td>{{ sub[1] }}</td>
-                            <td><code>{{ sub[2] }}</code></td>
-                            <td>{{ sub[3] }}</td>
-                            <td><code>{{ sub[4] }}</code></td>
-                            <td class="status-{{ sub[5].split()[0] }}">{{ sub[5] }}</td>
-                            <td>{{ sub[6] }}</td>
-                            <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-info text-white view-btn" data-subid="{{ sub[0] }}" data-filename="{{ sub[4] }}">
-                                    View
-                                </button>
-                                <!-- New Single File Download Button -->
-                                <a href="{{ url_for('admin.download_single', sub_id=sub[0]) }}" class="btn btn-sm btn-secondary">Download</a>
-                                <form action="{{ url_for('admin.delete_submission', sub_id=sub[0]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
-                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                        <!-- DataTables Populates -->
                     </tbody>
                     <tfoot class="table-light">
                         <tr>
+                            <th></th>
                             <th></th>
                             <th>Roll Filter</th>
                             <th>Enrollment Filter</th>
@@ -185,15 +212,12 @@
     <div class="modal fade" id="viewModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title" id="viewModalLabel">File Content</h5>
+                <div class="modal-header bg-dark text-white border-0">
+                    <h5 class="modal-title fw-semibold" id="viewModalLabel">File Content</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body bg-light">
-                    <pre><code id="fileContentCode">Loading code...</code></pre>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <div class="modal-body bg-dark p-0">
+                    <pre class="m-0"><code id="fileContentCode" class="p-4">Loading code...</code></pre>
                 </div>
             </div>
         </div>
@@ -203,96 +227,139 @@
     <div class="modal fade" id="evalModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-warning">
-                    <h5 class="modal-title fw-bold" id="evalModalLabel">Execution Console</h5>
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark" id="evalModalLabel">Execution Console</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body bg-light">
-                    <h6 class="fw-bold">Current Status: <span id="evalCurrentStatus" class="badge bg-secondary">Loading...</span></h6>
+                <div class="modal-body pt-3">
+                    <h6 class="fw-semibold mb-3">Status: <span id="evalCurrentStatus" class="badge bg-secondary rounded-pill px-3">Loading...</span></h6>
 
-                    <label class="fw-bold mt-3">Custom Standard Input (Optional):</label>
-                    <textarea id="customInputArea" class="form-control font-monospace mb-3" rows="3" placeholder="Enter input to pipe into the program..."></textarea>
+                    <label class="fw-semibold text-secondary small text-uppercase mb-2">Custom Standard Input (Optional):</label>
+                    <textarea id="customInputArea" class="form-control font-monospace mb-3 bg-light" rows="3" placeholder="Enter input to pipe into the program..."></textarea>
 
-                    <button id="runCustomBtn" class="btn btn-primary w-100 mb-3 fw-bold">⚙️ Run with Custom Input</button>
+                    <button id="runCustomBtn" class="btn btn-primary w-100 mb-4 fw-bold rounded-3">▶ Run with Custom Input</button>
 
-                    <label class="fw-bold">Output / Execution Logs:</label>
-                    <pre><code id="evalLogCode" class="text-white bg-dark p-3 rounded d-block" style="font-size:13px; min-height: 150px; white-space: pre-wrap;">Loading logs...</code></pre>
+                    <label class="fw-semibold text-secondary small text-uppercase mb-2">Output Logs:</label>
+                    <pre><code id="evalLogCode" class="text-white bg-dark p-3 rounded-3 d-block font-monospace" style="font-size:13px; min-height: 150px; white-space: pre-wrap;">Loading logs...</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plagiarism Report Modal -->
+    <div class="modal fade" id="plagiarismModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">🕵️ Plagiarism Report (>80% Similarity)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <div class="alert alert-light border small text-muted">Code is stripped of all comments and whitespace before structural comparison.</div>
+                    <div class="border rounded-3 overflow-hidden">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3 text-secondary small text-uppercase">Match %</th>
+                                    <th class="text-secondary small text-uppercase">Student 1 (Roll)</th>
+                                    <th class="text-secondary small text-uppercase">Student 2 (Roll)</th>
+                                    <th class="text-secondary small text-uppercase">File References</th>
+                                </tr>
+                            </thead>
+                            <tbody id="plagiarismBody">
+                                <tr><td colspan="4" class="text-center py-4 text-muted">Loading analysis... This may take a moment.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Lab Manager Modal -->
-<div class="modal fade" id="labManagerModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title">🛠️ Lab Configuration Manager</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Nav Tabs -->
-                <ul class="nav nav-tabs mb-3" id="labTabs" role="tablist">
-                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#activeSessionTab">1. Active Session</a></li>
-                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#createLab">2. Create Lab</a></li>
-                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#manualTest">3. Manual Test</a></li>
-                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#uploadTest">4. Bulk Upload</a></li>
-                </ul>
+    <div class="modal fade" id="labManagerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-dark">🛠️ Configuration Manager</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-3">
+                    <!-- Nav Tabs -->
+                    <ul class="nav nav-tabs mb-4 border-bottom-0 gap-2" id="labTabs" role="tablist">
+                        <li class="nav-item"><a class="nav-link active bg-light text-dark fw-medium border rounded-3" data-bs-toggle="tab" href="#activeSessionTab">1. Active Session</a></li>
+                        <li class="nav-item"><a class="nav-link bg-light text-dark fw-medium border rounded-3" data-bs-toggle="tab" href="#createLab">2. Create Lab</a></li>
+                        <li class="nav-item"><a class="nav-link bg-light text-dark fw-medium border rounded-3" data-bs-toggle="tab" href="#manualTest">3. Manual Test</a></li>
+                        <li class="nav-item"><a class="nav-link bg-light text-dark fw-medium border rounded-3" data-bs-toggle="tab" href="#uploadTest">4. Bulk Upload</a></li>
+                    </ul>
 
-                <div class="tab-content">
-                    <!-- Tab 1: Active Session -->
-                    <div class="tab-pane fade show active" id="activeSessionTab">
-                        <h6 class="fw-bold mb-3">Current Active Lab: <span id="displayActiveLab" class="badge bg-success">Loading...</span></h6>
-                        <label class="fw-bold">Switch Active Lab To:</label>
-                        <div class="d-flex gap-2 mt-2">
-                            <select id="switchActiveLabSelect" class="form-select lab-dropdown"></select>
-                            <button id="btnSwitchLab" class="btn btn-warning fw-bold shadow-sm">Switch</button>
-                        </div>
-                        <p class="text-danger small mt-2">⚠️ Warning: Switching the active lab will change the upload destination and expected extensions for all students instantly.</p>
-                    </div>
-
-                    <!-- Tab 2: Create Lab -->
-                    <div class="tab-pane fade" id="createLab">
-                        <input type="text" id="newLabName" class="form-control mb-3" placeholder="e.g., automata_lab_02">
-                        <label class="fw-bold mb-2">Allowed Languages:</label><br>
-                        <input type="checkbox" class="lang-check" value="c" checked> C &nbsp;
-                        <input type="checkbox" class="lang-check" value="cpp" checked> C++ &nbsp;
-                        <input type="checkbox" class="lang-check" value="py"> Python &nbsp;
-                        <input type="checkbox" class="lang-check" value="java"> Java &nbsp;
-                        <input type="checkbox" class="lang-check" value="sh"> Bash
-                        <button id="btnCreateLab" class="btn btn-success w-100 mt-4">Initialize Lab</button>
-                    </div>
-
-                    <!-- Tab 3: Manual Test Case -->
-                    <div class="tab-pane fade" id="manualTest">
-                        <label class="fw-bold mb-1">Target Lab:</label>
-                        <select id="manualLabName" class="form-select lab-dropdown mb-3"></select>
-                        <div class="row">
-                            <div class="col-6">
-                                <label>Standard Input:</label>
-                                <textarea id="manualInput" class="form-control font-monospace" rows="5"></textarea>
-                            </div>
-                            <div class="col-6">
-                                <label>Expected Output:</label>
-                                <textarea id="manualOutput" class="form-control font-monospace" rows="5"></textarea>
+                    <div class="tab-content">
+                        <!-- Tab 1: Active Session -->
+                        <div class="tab-pane fade show active" id="activeSessionTab">
+                            <div class="p-4 border rounded-3 bg-white">
+                                <h6 class="fw-semibold mb-3 text-secondary small text-uppercase">Current Active Lab: <span id="displayActiveLab" class="badge bg-primary rounded-pill px-2 ms-1">Loading...</span></h6>
+                                <label class="fw-semibold mb-2">Switch Active Lab To:</label>
+                                <div class="d-flex gap-2">
+                                    <select id="switchActiveLabSelect" class="form-select lab-dropdown"></select>
+                                    <button id="btnSwitchLab" class="btn btn-warning fw-bold shadow-sm px-4">Switch</button>
+                                </div>
+                                <p class="text-danger small mt-3 mb-0">⚠️ Warning: Switching the active lab will change the upload destination and expected extensions for all students instantly.</p>
                             </div>
                         </div>
-                        <button id="btnSaveManual" class="btn btn-primary w-100 mt-3">Save as Next Test Case</button>
-                    </div>
 
-                    <!-- Tab 4: Bulk Upload -->
-                    <div class="tab-pane fade" id="uploadTest">
-                        <div class="alert alert-info small">Select all relevant text files (e.g., <code>input_1.txt</code>, <code>output_1.txt</code>) at once.</div>
-                        <label class="fw-bold mb-1">Target Lab:</label>
-                        <select id="uploadLabName" class="form-select lab-dropdown mb-3"></select>
-                        <input type="file" id="bulkTestFiles" class="form-control mb-3" multiple accept=".txt">
-                        <button id="btnUploadBulk" class="btn btn-primary w-100">Upload All Files</button>
+                        <!-- Tab 2: Create Lab -->
+                        <div class="tab-pane fade" id="createLab">
+                            <div class="p-4 border rounded-3 bg-white">
+                                <label class="fw-semibold text-secondary small text-uppercase mb-2">Lab Name</label>
+                                <input type="text" id="newLabName" class="form-control mb-4" placeholder="e.g., automata_lab_02">
+                                
+                                <label class="fw-semibold text-secondary small text-uppercase mb-2">Allowed Languages:</label><br>
+                                <div class="d-flex gap-4 mb-4">
+                                    <div class="form-check"><input type="checkbox" class="form-check-input lang-check" value="c" id="lc" checked> <label class="form-check-label" for="lc">C</label></div>
+                                    <div class="form-check"><input type="checkbox" class="form-check-input lang-check" value="cpp" id="lcpp" checked> <label class="form-check-label" for="lcpp">C++</label></div>
+                                    <div class="form-check"><input type="checkbox" class="form-check-input lang-check" value="py" id="lpy"> <label class="form-check-label" for="lpy">Python</label></div>
+                                    <div class="form-check"><input type="checkbox" class="form-check-input lang-check" value="java" id="ljava"> <label class="form-check-label" for="ljava">Java</label></div>
+                                    <div class="form-check"><input type="checkbox" class="form-check-input lang-check" value="sh" id="lsh"> <label class="form-check-label" for="lsh">Bash</label></div>
+                                </div>
+                                <button id="btnCreateLab" class="btn btn-success w-100 fw-bold rounded-3">Initialize New Lab</button>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Manual Test Case -->
+                        <div class="tab-pane fade" id="manualTest">
+                            <div class="p-4 border rounded-3 bg-white">
+                                <label class="fw-semibold text-secondary small text-uppercase mb-2">Target Lab</label>
+                                <select id="manualLabName" class="form-select lab-dropdown mb-4"></select>
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <label class="fw-semibold text-secondary small text-uppercase mb-2">Standard Input</label>
+                                        <textarea id="manualInput" class="form-control font-monospace bg-light" rows="5"></textarea>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="fw-semibold text-secondary small text-uppercase mb-2">Expected Output</label>
+                                        <textarea id="manualOutput" class="form-control font-monospace bg-light" rows="5"></textarea>
+                                    </div>
+                                </div>
+                                <button id="btnSaveManual" class="btn btn-primary w-100 mt-4 fw-bold rounded-3">Save as Next Test Case</button>
+                            </div>
+                        </div>
+
+                        <!-- Tab 4: Bulk Upload -->
+                        <div class="tab-pane fade" id="uploadTest">
+                            <div class="p-4 border rounded-3 bg-white">
+                                <div class="alert alert-light border small text-muted">Select all relevant text files (e.g., <code>input_1.txt</code>, <code>output_1.txt</code>) at once.</div>
+                                <label class="fw-semibold text-secondary small text-uppercase mb-2">Target Lab</label>
+                                <select id="uploadLabName" class="form-select lab-dropdown mb-4"></select>
+                                <label class="fw-semibold text-secondary small text-uppercase mb-2">Select Files</label>
+                                <input type="file" id="bulkTestFiles" class="form-control mb-4 bg-light" multiple accept=".txt">
+                                <button id="btnUploadBulk" class="btn btn-primary w-100 fw-bold rounded-3">Upload All Files</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -300,13 +367,11 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
-
-    <!-- NEW: Highlight.js Engine -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         $(document).ready(function() {
-            // NEW: Suppress ugly DataTables alert popups on timeout
             $.fn.dataTable.ext.errMode = 'none';
 
             var table = $('#submissionsTable').DataTable({
@@ -315,33 +380,42 @@
                     "url": "/admin/api/submissions",
                     "dataSrc": ""
                 },
-		"columns": [
+                "columns": [
+                    {
+                        "data": null,
+                        "orderable": false,
+                        "className": "text-center",
+                        "render": function(data, type, row) {
+                            return `<input type="checkbox" class="form-check-input border-secondary row-checkbox" value="${row.id}">`;
+                        }
+                    },
                     { "data": "id" },
                     { "data": "roll_no" },
                     {
                         "data": "enrollment_no",
-                        "render": function(data) {
+                        "render": function(data) { 
                             var safeData = $('<div>').text(data).html();
-                            return '<code>' + safeData + '</code>';
+                            return '<code class="text-primary fw-bold">' + safeData + '</code>'; 
                         }
                     },
                     { "data": "dept" },
                     {
                         "data": "filename",
-                        "render": function(data) {
+                        "render": function(data) { 
                             var safeData = $('<div>').text(data).html();
-                            return '<code>' + safeData + '</code>';
+                            return '<span class="font-monospace text-secondary" style="font-size:0.9rem;">' + safeData + '</span>'; 
                         }
                     },
                     {
                         "data": "status",
                         "render": function(data) {
                             var safeData = $('<div>').text(data).html();
-                            var statusClass = safeData.startsWith('Success') ? 'status-Success' : 'status-Compilation';
+                            var statusClass = safeData.startsWith('Success') || safeData.startsWith('Passed') ? 'status-Success' : 
+                                              safeData.includes('Pending') || safeData.includes('Uploaded') ? 'badge bg-warning bg-opacity-25 text-warning-emphasis rounded-pill' : 'status-Compilation';
                             return '<span class="' + statusClass + '">' + safeData + '</span>';
                         }
                     },
-                    { "data": "timestamp" },
+                    { "data": "timestamp", "className": "text-muted small" },
                     {
                         "data": null,
                         "className": "text-center",
@@ -349,26 +423,26 @@
                             var safeFile = $('<div>').text(row.filename).html();
                             var safeId = parseInt(row.id, 10);
                             return `
-                                <button type="button" class="btn btn-sm btn-info text-white view-btn" data-subid="${safeId}" data-filename="${safeFile}">View</button>
-                                <button type="button" class="btn btn-sm btn-warning eval-btn" data-subid="${safeId}" data-filename="${safeFile}">Logs/Run</button>
-                                <a href="/admin/download_single/${safeId}" class="btn btn-sm btn-secondary">Download</a>
-                                <form action="/admin/delete_sub/${safeId}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
-                                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                                </form>
+                                <div class="btn-group shadow-sm">
+                                    <button type="button" class="btn btn-sm btn-light border text-primary view-btn fw-medium" data-subid="${safeId}" data-filename="${safeFile}">Code</button>
+                                    <button type="button" class="btn btn-sm btn-light border text-dark eval-btn fw-medium" data-subid="${safeId}" data-filename="${safeFile}">Logs</button>
+                                    <a href="/admin/download_single/${safeId}" class="btn btn-sm btn-light border text-secondary fw-medium">⬇</a>
+                                    <form action="/admin/delete_sub/${safeId}" method="POST" style="display:inline;" onsubmit="return confirm('Permanently delete this file?');">
+                                        <button type="submit" class="btn btn-sm btn-light border text-danger fw-medium">🗑️</button>
+                                    </form>
+                                </div>
                             `;
                         }
                     }
                 ],
-                "order": [[ 6, "desc" ]],
+                "order": [[ 7, "desc" ]],
                 "pageLength": 50,
-                rowGroup: { dataSrc: 1 },
+                rowGroup: { dataSrc: 2 }, // Group by Roll No
                 initComplete: function () {
                     var api = this.api();
-
-                    // Inputs for Roll No (Col 1), Enrollment No (Col 2), and Filename (Col 4)
-                    api.columns([1, 2, 4]).every(function() {
+                    api.columns([2, 3, 5]).every(function() {
                         var column = this;
-                        $('<input type="text" class="form-control form-control-sm" placeholder="Search..." />')
+                        $('<input type="text" class="form-control form-control-sm bg-light" placeholder="Search..." />')
                             .appendTo($(column.footer()).empty())
                             .on('keyup change', function () {
                                 if (column.search() !== this.value) {
@@ -377,150 +451,100 @@
                             });
                     });
                 },
-                // Re-populate dropdowns dynamically on every table draw/refresh
                 "drawCallback": function (settings) {
                     var api = this.api();
 
-                    // --- NEW: Calculate Live Stats from currently visible rows ---
+                    // Calculate Live Stats
                     var total = 0, passed = 0, failed = 0, pending = 0;
-
                     api.rows({ search: 'applied' }).data().each(function(row) {
                         total++;
                         var statusStr = row.status || "";
-                        if (statusStr.includes('Passed') || statusStr.includes('Success')) {
-                            passed++;
-                        } else if (statusStr.includes('Pending') || statusStr.includes('Uploaded')) {
-                            pending++;
-                        } else {
-                            failed++;
-                        }
+                        if (statusStr.includes('Passed') || statusStr.includes('Success')) { passed++; } 
+                        else if (statusStr.includes('Pending') || statusStr.includes('Uploaded')) { pending++; } 
+                        else { failed++; }
                     });
 
-                    // Animate the numbers in
                     $('#statTotal').text(total);
                     $('#statPassed').text(passed);
                     $('#statFailed').text(failed);
                     $('#statPending').text(pending);
-                    // -------------------------------------------------------------
 
-                    // Target Dept (Col 3) and Status (Col 5)
-                    api.columns([3, 5], { search: 'applied' }).every(function () {
+                    // Rebuild Dropdowns
+                    api.columns([4, 6], { search: 'applied' }).every(function () {
                         var column = this;
                         var footerCell = $(column.footer());
-
-                        // Remember currently selected value so we don't wipe it out on reload
                         var currentSelected = footerCell.find('select').val() || "";
 
-                        // Rebuild the select element
-                        var select = $('<select class="form-select form-select-sm"><option value="">All</option></select>')
+                        var select = $('<select class="form-select form-select-sm bg-light"><option value="">All</option></select>')
                             .on('change', function () {
                                 var val = $.fn.dataTable.util.escapeRegex($(this).val());
                                 column.search(val ? '^' + val + '$' : '', true, false).draw();
                             });
 
-                        // Gather unique values currently available in the dataset
                         var uniqueValues = [];
                         column.data().unique().sort().each(function (d) {
                             var textData = $('<div>').html(d).text();
-                            if (textData && uniqueValues.indexOf(textData) === -1) {
-                                uniqueValues.push(textData);
-                            }
+                            if (textData && uniqueValues.indexOf(textData) === -1) uniqueValues.push(textData);
                         });
 
                         uniqueValues.forEach(function (val) {
                             var selectedAttr = (val === currentSelected) ? ' selected' : '';
                             select.append('<option value="' + val + '"' + selectedAttr + '>' + val + '</option>');
                         });
-
                         footerCell.empty().append(select);
                     });
                 }
             });
 
-	    // Manual Refresh Button Logic (Replaces setInterval)
-        // --- NEW ROBUST REFRESH BUTTON LOGIC ---
-            var $refreshBtn = $('#btnRefreshTable');
-            $refreshBtn.off('click').on('click', function() {
-                $refreshBtn.prop('disabled', true).text('⏳...');
+            // Robust Refresh & Auto-Polling
+            var $refreshBtn =$('#btnRefreshTable');
+            $refreshBtn.off('click').on('click', function() {$refreshBtn.prop('disabled', true).text('⏳...');
                 table.ajax.reload(null, false);
             });
             table.on('xhr.dt', function () {
                 $refreshBtn.prop('disabled', false).text('🔄 Refresh');
             });
-
-            // NEW: 10-Second Auto-Polling
             setInterval(function() {
-                if ($('#autoRefreshToggle').is(':checked')) {
-                    // Only refresh if no modals are open (don't interrupt the teacher)
-                    if (!$('.modal.show').length) {
-                        table.ajax.reload(null, false);
-                    }
+                if ($('#autoRefreshToggle').is(':checked') && !$('.modal.show').length) {
+                    table.ajax.reload(null, false);
                 }
             }, 10000);
 
-            $refreshBtn.off('click').on('click', function() {
-                // 1. Lock the button and change text to prevent spam clicks
-                $refreshBtn.prop('disabled', true).text('⏳ Refreshing...');
-
-                // 2. Tell DataTables to fetch new data (null = keep current pagination, false = don't reset)
-                table.ajax.reload(null, false);
-            });
-
-            // 3. Listen for the AJAX network request to finish (Fires on BOTH Success and Timeout/Error)
-            table.on('xhr.dt', function (e, settings, json, xhr) {
-                // Instantly unlock the button and reset the text
-                $refreshBtn.prop('disabled', false).text('🔄 Refresh Status');
-            });
-
-            // Modal Logic
-            // Upgraded Code Viewer Modal Logic
+            // Modern Code Viewer with Highlight.js
             $('#submissionsTable').on('click', '.view-btn', function() {
                 var subId = $(this).data('subid');
                 var filename = $(this).data('filename');
 
                 $('#viewModalLabel').text(filename);
-                var $codeBlock = $('#fileContentCode');
-
-                // Reset the code block completely
-                $codeBlock.text('Fetching file content...');
-                $codeBlock.removeAttr('data-highlighted').removeClass();
+                var $codeBlock =$('#fileContentCode');
+                $codeBlock.text('Fetching file content...');$codeBlock.removeAttr('data-highlighted').removeClass();
 
                 var viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
                 viewModal.show();
 
                 $.get('/admin/view/' + subId, function(data) {
                     $codeBlock.text(data);
-
-                    // Determine language for highlighting
                     var ext = filename.split('.').pop().toLowerCase();
                     if (ext === 'c' || ext === 'cpp') $codeBlock.addClass('language-cpp');
                     else if (ext === 'py') $codeBlock.addClass('language-python');
                     else if (ext === 'java') $codeBlock.addClass('language-java');
                     else if (ext === 'sh') $codeBlock.addClass('language-bash');
-
-                    // Apply IDE styling
-                    hljs.highlightElement($codeBlock[0]);
-                }).fail(function() {
-                    $codeBlock.text('Error: Could not load file.');
+                    hljs.highlightElement($codeBlock[0]);                 }).fail(function() {$codeBlock.text('Error: Could not load file.');
                 });
             });
-	   
-	    // Evaluation Modal Logic
+
+            // Eval Modal
             let currentEvalId = null;
-            
             $('#submissionsTable').on('click', '.eval-btn', function() {
                 currentEvalId = $(this).data('subid');
-                var filename = $(this).data('filename');
-                
-                $('#evalModalLabel').text("Execution Console: " + filename);
+                var filename = $(this).data('filename');$('#evalModalLabel').text("Console: " + filename);
                 $('#evalLogCode').text('Fetching latest logs...');
                 $('#evalCurrentStatus').text('...');
-                $('#customInputArea').val(''); // Clear old input
+                $('#customInputArea').val('');
                 
                 var evalModal = new bootstrap.Modal(document.getElementById('evalModal'));
                 evalModal.show();
                 
-                // Fetch existing DB logs first
                 $.ajax({
                     url: '/admin/api/grade_single/' + currentEvalId,
                     type: 'POST',
@@ -533,10 +557,8 @@
                 });
             });
 
-            // Run Custom Input Logic
             $('#runCustomBtn').click(function() {
                 var inputVal = $('#customInputArea').val();
-                
                 var btn = $(this);
                 btn.prop('disabled', true).text('⏳ Executing in Sandbox...');
                 $('#evalLogCode').text('Running... Please wait.');
@@ -549,17 +571,99 @@
                     success: function(response) {
                         $('#evalCurrentStatus').text("Custom Run: " + response.status);
                         $('#evalLogCode').text(response.log);
-                        btn.prop('disabled', false).text('⚙️ Run with Custom Input');
+                        btn.prop('disabled', false).text('▶ Run with Custom Input');
                     },
                     error: function() {
                         $('#evalLogCode').text("Error connecting to evaluation server.");
-                        btn.prop('disabled', false).text('⚙️ Run with Custom Input');
+                        btn.prop('disabled', false).text('▶ Run with Custom Input');
                     }
+                });
+            });
+
+            // Bulk Actions via SweetAlert2
+            $('#selectAllBoxes').on('click', function() {
+                $('.row-checkbox').prop('checked',$(this).is(':checked'));
+            });
+
+            function performBulkAction(actionType) {
+                var selectedIds = [];
+                $('.row-checkbox:checked').each(function() { selectedIds.push(parseInt($(this).val())); });
+                if (selectedIds.length === 0) {
+                    Swal.fire('No Selection', 'Please select at least one submission.', 'warning');
+                    return;
+                }
+                var msg = actionType === 'delete' ? "Permanently delete" : "Re-grade";
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: `You are about to ${msg} ${selectedIds.length} submissions.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: actionType === 'delete' ? '#ef4444' : '#f59e0b',
+                    confirmButtonText: `Yes, ${actionType} them!`
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: '/admin/api/bulk_action',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({ action: actionType, ids: selectedIds }),
+                            success: function(res) {
+                                Swal.fire('Success!', res.message, 'success');
+                                $('#selectAllBoxes').prop('checked', false);
+                                table.ajax.reload(null, false);
+                            },
+                            error: function() { Swal.fire('Error', 'Failed to perform action.', 'error'); }
+                        });
+                    }
+                });
+            }
+            $('#bulkRegradeBtn').click(function(e) { e.preventDefault(); performBulkAction('regrade'); });
+            $('#bulkDeleteBtn').click(function(e) { e.preventDefault(); performBulkAction('delete'); });
+
+            // Global Lock Toggle
+            $('#btnToggleSubmissions').click(function() {
+                $.post('/admin/api/toggle_submissions', function(res) {
+                    var btn = $('#btnToggleSubmissions');
+                    if (res.is_open) {
+                        btn.removeClass('btn-success').addClass('btn-outline-danger').html('🔒 Lock Lab');
+                        Swal.fire('Unlocked', res.message, 'success');
+                    } else {
+                        btn.removeClass('btn-outline-danger').addClass('btn-success').html('🔓 Unlock Lab');
+                        Swal.fire('Locked', res.message, 'warning');
+                    }
+                });
+            });
+
+            // Plagiarism Checker
+            $('#btnPlagiarism').click(function() {
+                var plagModal = new bootstrap.Modal(document.getElementById('plagiarismModal'));
+                $('#plagiarismBody').html('<tr><td colspan="4" class="text-center fw-medium py-4">⚙️ Analyzing code structures... Please wait.</td></tr>');
+                plagModal.show();
+
+                $.get('/admin/api/check_similarity', function(res) {
+                    if (res.data.length === 0) {
+                        $('#plagiarismBody').html('<tr><td colspan="4" class="text-center text-success fw-bold py-4">✅ No significant similarities found!</td></tr>');
+                        return;
+                    }
+                    var html = '';
+                    res.data.forEach(function(match) {
+                        var badgeClass = match.similarity > 95 ? 'bg-danger' : 'bg-warning text-dark';
+                        html += `
+                            <tr>
+                                <td class="text-center align-middle"><span class="badge ${badgeClass} rounded-pill px-3 py-2 fs-6 shadow-sm">${match.similarity}%</span></td>
+                                <td class="fw-bold text-primary align-middle">${match.student1}</td>
+                                <td class="fw-bold text-primary align-middle">${match.student2}</td>
+                                <td class="small text-muted font-monospace">${match.file1}<br>${match.file2}</td>
+                            </tr>`;
+                    });
+                    $('#plagiarismBody').html(html);
+                }).fail(function() {
+                    $('#plagiarismBody').html('<tr><td colspan="4" class="text-center text-danger py-4">Error running plagiarism check.</td></tr>');
                 });
             });
         });
 
-	// Dynamically load labs into all dropdowns
+        // Config Manager Lab Loaders
         function loadLabs() {
             $.get('/admin/api/get_labs', function(data) {
                 $('#displayActiveLab').text(data.active_lab);
@@ -568,16 +672,11 @@
                     var sel = (lab === data.active_lab) ? ' selected' : '';
                     options += `<option value="${lab}"${sel}>${lab}</option>`;
                 });
-                $('.lab-dropdown').html(options); // Populates all 3 dropdowns at once!
+                $('.lab-dropdown').html(options);
             });
         }
+        $('#labManagerModal').on('show.bs.modal', function () { loadLabs(); });
 
-        // Trigger population when the modal opens
-        $('#labManagerModal').on('show.bs.modal', function () {
-            loadLabs();
-        });
-
-        // Handle Switching the Active Lab
         $('#btnSwitchLab').click(function() {
             var btn = $(this);
             btn.prop('disabled', true).text('Switching...');
@@ -585,54 +684,38 @@
                 url: '/admin/api/set_active_lab', type: 'POST', contentType: 'application/json',
                 data: JSON.stringify({ lab_name: $('#switchActiveLabSelect').val() }),
                 success: function(r) { 
-                    alert(r.message);
-                    location.reload(); // Reload the whole page so the dashboard title updates
+                    Swal.fire('Success', r.message, 'success').then(() => location.reload()); 
                 }
             });
         });
 
-	// Create Lab
         $('#btnCreateLab').click(function() {
             var exts = [];
-            $('.lang-check:checked').each(function() { exts.push($(this).val()); });
-            $.ajax({
+            $('.lang-check:checked').each(function() { exts.push($(this).val()); });$.ajax({
                 url: '/admin/api/create_lab', type: 'POST', contentType: 'application/json',
                 data: JSON.stringify({ lab_name: $('#newLabName').val(), extensions: exts }),
-                success: function(r) { alert(r.message); $('#newLabName').val(''); }
+                success: function(r) { Swal.fire('Created', r.message, 'success'); $('#newLabName').val(''); }
             });
         });
 
-        // Manual Test Case
         $('#btnSaveManual').click(function() {
             $.ajax({
                 url: '/admin/api/add_test_case_manual', type: 'POST', contentType: 'application/json',
-                data: JSON.stringify({
-                    lab_name: $('#manualLabName').val(),
-                    input_data: $('#manualInput').val(),
-                    output_data: $('#manualOutput').val()
-                }),
-                success: function(r) { 
-                    alert(r.message); 
-                    $('#manualInput').val(''); 
-                    $('#manualOutput').val(''); 
-                }
+                data: JSON.stringify({ lab_name: $('#manualLabName').val(), input_data: $('#manualInput').val(), output_data: $('#manualOutput').val() }),
+                success: function(r) { Swal.fire('Saved', r.message, 'success'); $('#manualInput, #manualOutput').val(''); }
             });
         });
 
-        // Bulk Upload
         $('#btnUploadBulk').click(function() {
             var formData = new FormData();
             formData.append('lab_name', $('#uploadLabName').val());
             var files = $('#bulkTestFiles')[0].files;
             for(var i=0; i<files.length; i++) { formData.append('files', files[i]); }
-            
             $.ajax({
-                url: '/admin/api/upload_test_cases', type: 'POST', processData: false, contentType: false,
-                data: formData,
-                success: function(r) { alert(r.message); $('#bulkTestFiles').val(''); }
+                url: '/admin/api/upload_test_cases', type: 'POST', processData: false, contentType: false, data: formData,
+                success: function(r) { Swal.fire('Uploaded', r.message, 'success'); $('#bulkTestFiles').val(''); }
             });
         });
     </script>
-
 </body>
 </html>

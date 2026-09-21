@@ -58,6 +58,11 @@ def upload():
     active_lab = current_app.config['ACTIVE_LAB']
 
     if request.method == 'POST':
+        # --- NEW: Global Pencils Down Check ---
+        if not current_app.config.get('SUBMISSIONS_OPEN', True):
+            flash('Submissions are currently closed by the instructor.', 'danger')
+            return redirect(url_for('student.upload'))
+
         uploaded_files = request.files.getlist('files')
         for file in uploaded_files:
             if file and allowed_file(file.filename):

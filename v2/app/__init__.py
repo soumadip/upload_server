@@ -46,6 +46,8 @@ def create_app():
     app.config['SESSION_PERMANENT'] = True
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=app_config.get("session_timeout_seconds", 1200))
 
+    app.config['SUBMISSIONS_OPEN'] = app_config.get("submissions_open", True)
+
     app.register_blueprint(student_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
 

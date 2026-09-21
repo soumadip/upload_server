@@ -4,38 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lab Submission Portal</title>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f6f9; }
-        .dashboard-container { max-width: 900px; margin: auto; padding-top: 40px; }
-        .info-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 20px; border-left: 5px solid #0d6efd;}
-        #timer { font-size: 1.1rem; font-weight: bold; color: #dc3545; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
+        .dashboard-container { max-width: 950px; margin: auto; padding-top: 50px; padding-bottom: 50px; }
+        .info-card { background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; padding: 20px 25px; margin-bottom: 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);}
+        #timer { font-size: 1rem; font-weight: 600; }
+        .upload-zone { background-color: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 12px; transition: all 0.2s ease; }
+        .upload-zone:hover { border-color: #94a3b8; background-color: #e2e8f0; }
+        .table-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .table th { background-color: #f8fafc; font-weight: 600; color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
+        .table td { vertical-align: middle; border-bottom: 1px solid #f1f5f9; }
+        .badge-soft-success { background-color: #d1fae5; color: #065f46; }
+        .badge-soft-danger { background-color: #fee2e2; color: #991b1b; }
+        .badge-soft-warning { background-color: #fef3c7; color: #92400e; }
+        .badge-soft-secondary { background-color: #f1f5f9; color: #475569; }
     </style>
 </head>
 <body oncopy="return false" oncut="return false" onpaste="return false">
     <div class="container dashboard-container">
         
-        <!-- Header & Timer -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="fw-bold m-0">Lab Submission Portal</h2>
+            <h2 class="fw-bold m-0" style="color: #0f172a;">Lab Submission Portal</h2>
             <form action="{{ url_for('student.logout') }}" method="POST" class="m-0">
-                <button type="submit" class="btn btn-outline-danger">End Session</button>
+                <button type="submit" class="btn btn-sm btn-outline-danger fw-semibold rounded-pill px-4">End Session</button>
             </form>
         </div>
 
         <div class="info-card d-flex justify-content-between align-items-center">
-            <div>
-                <strong>Name:</strong> {{ session['name'] }} <span class="text-muted mx-2">|</span> 
-                <strong>Roll:</strong> {{ session['roll_no'] }} <span class="text-muted mx-2">|</span>
-                <strong>Dept:</strong> {{ session['dept'] }}
+            <div class="fs-6">
+                <span class="text-muted me-1">Name:</span> <span class="fw-semibold text-dark me-4">{{ session['name'] }}</span>
+                <span class="text-muted me-1">Roll:</span> <span class="fw-semibold text-dark me-4">{{ session['roll_no'] }}</span>
+                <span class="text-muted me-1">Dept:</span> <span class="fw-semibold text-dark">{{ session['dept'] }}</span>
             </div>
-            <div id="timer">Time remaining: calculating...</div>
+            <div id="timer" class="badge badge-soft-danger px-3 py-2 rounded-pill">Time remaining: calculating...</div>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show">
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show rounded-3 border-0 shadow-sm">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -43,153 +53,158 @@
             {% endif %}
         {% endwith %}
 
-	<!-- Upload Form -->
-        <div class="card mb-5 shadow-sm border-0">
-            <div class="card-body p-4">
+        <!-- Upload Form -->
+        <div class="card mb-5 shadow-sm border-0 rounded-4">
+            <div class="card-body p-4 upload-zone">
+                {% if config['SUBMISSIONS_OPEN'] %}
                 <form method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-3">
-                    <!-- Updated accept attribute -->
-		    <input class="form-control" type="file" accept="{{ accept_string }}" name="files" multiple required>
-                    <button type="submit" class="btn btn-success px-4">Upload Code</button>
+                    <input class="form-control bg-white" type="file" accept="{{ accept_string }}" name="files" multiple required>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm rounded-3">Upload Code</button>
                 </form>
+                {% else %}
+                <div class="text-center py-3">
+                    <h5 class="text-danger fw-bold m-0">🔒 Submissions are currently closed.</h5>
+                    <p class="text-muted m-0 small mt-1">Your instructor has locked the lab. You can still view your previous reports below.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
 
         <!-- Current Session Submissions -->
-	<div class="d-flex justify-content-between align-items-end mb-3">
-            <h4 class="fw-bold m-0">Current Session Files</h4>
-            <button type="button" onclick="window.location.href = window.location.pathname;" class="btn btn-sm btn-info text-white fw-bold shadow-sm">
-                🔄 Refresh Status
+        <div class="d-flex justify-content-between align-items-end mb-3">
+            <h5 class="fw-bold m-0 text-dark">Current Session Files</h5>
+            <button type="button" onclick="window.location.href = window.location.pathname;" class="btn btn-sm btn-light border fw-semibold text-secondary shadow-sm rounded-pill px-3">
+                🔄 Refresh
             </button>
         </div>
-        <div class="card shadow-sm border-0 mb-5">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+        
+        <div class="table-card mb-5 shadow-sm">
+            <table class="table table-hover mb-0">
+                <thead>
                     <tr>
-                        <th>Filename</th>
+                        <th class="ps-4">Filename</th>
                         <th>Status</th>
                         <th>Time</th>
-                        <th class="text-end">Action</th>
+                        <th class="text-end pe-4">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for file in curr_files %}
                     <tr>
-                        <td><code>{{ file.original }}</code></td>
+                        <td class="ps-4 font-monospace text-primary fw-medium" style="font-size: 0.9rem;">{{ file.original }}</td>
                         <td>
                             {% if "Success" in file.status %}
-                                <span class="badge bg-success">{{ file.status }}</span>
+                                <span class="badge badge-soft-success rounded-pill px-2 py-1">{{ file.status }}</span>
+                            {% elif file.status == 'Uploaded' %}
+                                <span class="badge badge-soft-secondary rounded-pill px-2 py-1">{{ file.status }}</span>
+                            {% elif file.status == 'Pending Evaluation' %}
+                                <span class="badge badge-soft-warning rounded-pill px-2 py-1">{{ file.status }}</span>
                             {% else %}
-                                <span class="badge bg-danger">{{ file.status }}</span>
+                                <span class="badge badge-soft-danger rounded-pill px-2 py-1">{{ file.status }}</span>
                             {% endif %}
                         </td>
                         <td class="text-muted small">{{ file.time }}</td>
-			<td class="text-end">
-				{% if file.status == 'Uploaded' %}
-					<form method="POST" action="{{ url_for('student.request_eval', filename=file.full) }}" class="d-inline">
-					    <button type="submit" class="btn btn-sm btn-primary">Request Evaluation</button>
-					</form>
-				{% elif file.status == 'Pending Evaluation' %}
-					<button class="btn btn-sm btn-warning" disabled>Queued</button>
-				{% else %}
-					<button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>
-				{% endif %}
-
-				<form method="POST" action="{{ url_for('student.delete_file', filename=file.full) }}" class="d-inline ms-1" onsubmit="return confirm('Delete this submission?');">
-				    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-				</form>
-                    	</td>
+                        <td class="text-end pe-4">
+                            {% if file.status == 'Uploaded' %}
+                                <form method="POST" action="{{ url_for('student.request_eval', filename=file.full) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">Request Eval</button>
+                                </form>
+                            {% elif file.status == 'Pending Evaluation' %}
+                                <button class="btn btn-sm btn-light border text-muted rounded-pill px-3" disabled>Queued</button>
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 view-report-btn" data-filename="{{ file.full }}">View Report</button>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('student.delete_file', filename=file.full) }}" class="d-inline ms-1" onsubmit="return confirm('Delete this submission?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill px-3">Delete</button>
+                            </form>
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="4" class="text-center text-muted py-4">No files uploaded yet.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-5">No files uploaded yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-	<!-- Previous Session Submissions (Read-Only) -->
-        <h4 class="fw-bold mb-3 mt-5 text-secondary">Previous Session Files (Read-Only)</h4>
-        <div class="card shadow-sm border-0 mb-5">
-            <table class="table table-hover align-middle mb-0 text-muted">
-                <thead class="table-light">
+        <!-- Remaining Historical Tables Follow Same Structure -->
+        <h5 class="fw-bold mb-3 mt-5 text-dark">Previous Session Files (Read-Only)</h5>
+        <div class="table-card mb-5 shadow-sm">
+            <table class="table table-hover mb-0">
+                <thead>
                     <tr>
-                        <th>Filename</th>
+                        <th class="ps-4">Filename</th>
                         <th>Status</th>
                         <th>Time</th>
-                        <!-- NEW: Added Action Column -->
-                        <th class="text-end">Action</th>
+                        <th class="text-end pe-4">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for file in prev_files %}
-                    <tr>
-                        <td><code>{{ file.original }}</code></td>
+                    <tr class="opacity-75">
+                        <td class="ps-4 font-monospace text-secondary fw-medium" style="font-size: 0.9rem;">{{ file.original }}</td>
                         <td>
                             {% if file.status == 'Success' or 'Passed' in file.status %}
-                                <span class="badge bg-success opacity-75">{{ file.status }}</span>
+                                <span class="badge badge-soft-success rounded-pill px-2 py-1">{{ file.status }}</span>
                             {% elif file.status == 'Uploaded' %}
-                                <span class="badge bg-secondary opacity-75">{{ file.status }}</span>
+                                <span class="badge badge-soft-secondary rounded-pill px-2 py-1">{{ file.status }}</span>
                             {% elif file.status == 'Pending Evaluation' %}
-                                <span class="badge bg-warning text-dark opacity-75">{{ file.status }}</span>
+                                <span class="badge badge-soft-warning rounded-pill px-2 py-1">{{ file.status }}</span>
                             {% else %}
-                                <span class="badge bg-danger opacity-75">{{ file.status }}</span>
+                                <span class="badge badge-soft-danger rounded-pill px-2 py-1">{{ file.status }}</span>
                             {% endif %}
                         </td>
                         <td class="text-muted small">{{ file.time }}</td>
-                        <!-- NEW: Added Evaluation Buttons -->
-                        <td class="text-end">
+                        <td class="text-end pe-4">
                             {% if file.status == 'Pending Evaluation' %}
-                                <button class="btn btn-sm btn-warning" disabled>Queued</button>
+                                <button class="btn btn-sm btn-light border text-muted rounded-pill px-3" disabled>Queued</button>
                             {% else %}
-                                <button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>
+                                <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 view-report-btn" data-filename="{{ file.full }}">View Report</button>
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
-                    <!-- Updated colspan to 4 -->
-                    <tr><td colspan="4" class="text-center text-muted py-4">No previous historical submissions found.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-5">No previous historical submissions found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-    <!-- Historical Submissions (Past Labs) -->
         {% if historical_files %}
-        <div class="mt-5">
-            <h5 class="fw-bold text-secondary">📁 Past Lab Sessions</h5>
-            <div class="table-responsive bg-white rounded shadow-sm border">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
+        <div class="mt-5 mb-5">
+            <h5 class="fw-bold text-dark mb-3">Past Lab Sessions</h5>
+            <div class="table-card shadow-sm">
+                <table class="table table-hover mb-0">
+                    <thead>
                         <tr>
-                            <th>Lab Session</th>
+                            <th class="ps-4">Lab Session</th>
                             <th>Filename</th>
                             <th>Status</th>
                             <th>Time</th>
-                            <th class="text-end">Actions</th>
+                            <th class="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for file in historical_files %}
-                        <tr>
-                            <td><span class="badge bg-secondary">{{ file.lab }}</span></td>
-                            <td class="font-monospace text-muted">{{ file.original }}</td>
+                        <tr class="opacity-75">
+                            <td class="ps-4"><span class="badge bg-secondary rounded-pill px-2">{{ file.lab }}</span></td>
+                            <td class="font-monospace text-secondary fw-medium" style="font-size: 0.9rem;">{{ file.original }}</td>
                             <td>
                                 {% if file.status == 'Success' or 'Passed' in file.status %}
-                                    <span class="badge bg-success">{{ file.status }}</span>
+                                    <span class="badge badge-soft-success rounded-pill px-2 py-1">{{ file.status }}</span>
                                 {% elif file.status == 'Uploaded' %}
-                                    <span class="badge bg-secondary">{{ file.status }}</span>
+                                    <span class="badge badge-soft-secondary rounded-pill px-2 py-1">{{ file.status }}</span>
                                 {% elif file.status == 'Pending Evaluation' %}
-                                    <span class="badge bg-warning text-dark">{{ file.status }}</span>
+                                    <span class="badge badge-soft-warning rounded-pill px-2 py-1">{{ file.status }}</span>
                                 {% else %}
-                                    <span class="badge bg-danger">{{ file.status }}</span>
+                                    <span class="badge badge-soft-danger rounded-pill px-2 py-1">{{ file.status }}</span>
                                 {% endif %}
                             </td>
                             <td class="small text-muted">{{ file.time }}</td>
-                            <td class="text-end">
-                                <!-- Re-Evaluation and Report Buttons (No Delete) -->
+                            <td class="text-end pe-4">
                                 {% if file.status == 'Pending Evaluation' %}
-                                <button class="btn btn-sm btn-warning" disabled>Queued</button>
+                                    <button class="btn btn-sm btn-light border text-muted rounded-pill px-3" disabled>Queued</button>
                                 {% else %}
-                                <button type="button" class="btn btn-sm btn-info text-white view-report-btn" data-filename="{{ file.full }}">View Report</button>
+                                    <button type="button" class="btn btn-sm btn-dark rounded-pill px-3 view-report-btn" data-filename="{{ file.full }}">View Report</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -201,42 +216,40 @@
         {% endif %}
 
     <!-- Report Modal -->
-	<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
-	    <div class="modal-dialog modal-lg">
-		<div class="modal-content">
-		    <div class="modal-header bg-dark text-white">
-			<h5 class="modal-title">Evaluation Report</h5>
-			<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-		    </div>
-		    <div class="modal-body bg-light">
-			<pre><code id="reportContent" style="font-size: 14px; white-space: pre-wrap;">Loading...</code></pre>
-		    </div>
-		</div>
-	    </div>
-	</div>
+    <div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">Evaluation Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="bg-light p-4 rounded-3 border">
+                    <pre><code id="reportContent" style="font-size: 14px; white-space: pre-wrap; color: #334155; font-family: monospace;">Loading...</code></pre>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
 
-	<!-- Scripts -->
-	<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-	<script>
-	    $(document).ready(function() {
-		$('.view-report-btn').click(function() {
-		    var filename = $(this).data('filename');
-		    $('#reportContent').text('Fetching report...');
+    <!-- Scripts remain unchanged except styling classes above -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {$('.view-report-btn').click(function() {
+            var filename = $(this).data('filename');$('#reportContent').text('Fetching report...');
 
-		    var reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
-		    reportModal.show();
+            var reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
+            reportModal.show();
 
-		    $.get('/view_report/' + filename, function(data) {
-			$('#reportContent').text(data);
-		    }).fail(function() {
-			$('#reportContent').text('Error loading report.');
-		    });
-		});
-	    });
-	</script>
-
-    <!-- Timer Script -->
+            $.get('/view_report/' + filename, function(data) {
+            $('#reportContent').text(data);
+            }).fail(function() {
+            $('#reportContent').text('Error loading report.');
+            });
+        });
+        });
+    </script>
     <script>
         function startCountdown(duration) {
             let timerDisplay = document.getElementById('timer');
@@ -261,6 +274,5 @@
             startCountdown(sessionTimeout);
         });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

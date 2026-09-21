@@ -1,6 +1,6 @@
 import hmac
 from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, Response, redirect, url_for, jsonify
-import sqlite3, os, zipfile, io, csv, threading, time
+import sqlite3, os, zipfile, io, csv, threading, time, difflib, re
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from ..grader import run_grader_task
@@ -84,7 +84,7 @@ def download_single(sub_id):
 
 @admin_bp.route('/download_zip')
 def download_zip():
-    if not session.get('is_admin'): abort(403)
+    if not session.get('is_admin'): return redirect(url_for('admin.dashboard'))
 
     active_lab = current_app.config['ACTIVE_LAB']
 
@@ -115,7 +115,7 @@ def download_zip():
 
 @admin_bp.route('/export_csv')
 def export_csv():
-    if not session.get('is_admin'): abort(403)
+    if not session.get('is_admin'): return redirect(url_for('admin.dashboard'))
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
     # NEW: Added enrollment_no to the query
@@ -161,7 +161,7 @@ def view_file(sub_id):
 
 @admin_bp.route('/delete_sub/<int:sub_id>', methods=['POST'])
 def delete_submission(sub_id):
-    if not session.get('is_admin'): abort(403)
+    if not session.get('is_admin'): return redirect(url_for('admin.dashboard'))
 
     conn = sqlite3.connect('lab_sessions.db')
     c = conn.cursor()
@@ -233,7 +233,7 @@ def api_submissions():
 
 @admin_bp.route('/trigger_grader', methods=['POST'])
 def trigger_grader():
-    if not session.get('is_admin'): abort(403)
+    if not session.get('is_admin'): return redirect(url_for('admin.dashboard'))
 
     # Grab the actual Flask app instance to pass into the thread
     app = current_app._get_current_object()
@@ -335,3 +335,113 @@ def api_set_active_lab():
         set_active_lab(current_app, safe_lab)
         return jsonify({'status': 'success', 'message': f'Active lab changed to {safe_lab}'})
     return jsonify({'error': 'Invalid lab name'}), 400
+
+@admin_bp.route('/api/bulk_action', methods=['POST'])
+def api_bulk_action():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+    data = request.json
+    action = data.get('action')
+    sub_ids = data.get('ids', [])
+
+    if not sub_ids or action not in ['delete', 'regrade']:
+        return jsonify({'error': 'Invalid request'}), 400
+
+    conn = sqlite3.connect('lab_sessions.db')
+    c = conn.cursor()
+
+    if action == 'delete':
+        for sid in sub_ids:
+            c.execute("SELECT assignment_id, dept, filename FROM submissions WHERE id = ?", (sid,))
+            record = c.fetchone()
+            if record:
+                filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], record[0], record[1], record[2])
+                if not os.path.exists(filepath):
+                    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], record[1], record[2])
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+
+        placeholders = ','.join('?' * len(sub_ids))
+        c.execute(f"DELETE FROM submissions WHERE id IN ({placeholders})", sub_ids)
+        msg = f"Permanently deleted {len(sub_ids)} submissions."
+
+    elif action == 'regrade':
+        placeholders = ','.join('?' * len(sub_ids))
+        c.execute(f"UPDATE submissions SET status = 'Pending Evaluation' WHERE id IN ({placeholders})", sub_ids)
+        msg = f"Queued {len(sub_ids)} submissions for the Auto-Grader."
+
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'success', 'message': msg})
+
+@admin_bp.route('/api/check_similarity', methods=['GET'])
+def api_check_similarity():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+
+    active_lab = current_app.config['ACTIVE_LAB']
+    conn = sqlite3.connect('lab_sessions.db')
+    c = conn.cursor()
+    c.execute("SELECT id, roll_no, filename, dept FROM submissions WHERE assignment_id = ?", (active_lab,))
+    subs = c.fetchall()
+    conn.close()
+
+    file_contents = {}
+    for sub in subs:
+        sid, roll, fname, dept = sub
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], active_lab, dept, fname)
+        if not os.path.exists(filepath):
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], dept, fname)
+
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                raw_code = f.read()
+                # Advanced: Strip C/C++/Java comments to prevent trivial evasion
+                no_comments = re.sub(r'//.*?\n|/\*.*?\*/', '', raw_code, flags=re.DOTALL)
+                # Strip all whitespace and newlines for structural comparison
+                clean_text = "".join(no_comments.split())
+                file_contents[sid] = {'roll': roll, 'text': clean_text, 'fname': fname}
+
+    results = []
+    sids = list(file_contents.keys())
+
+    # O(N^2) comparison of all students
+    for i in range(len(sids)):
+        for j in range(i + 1, len(sids)):
+            id1, id2 = sids[i], sids[j]
+
+            # Don't compare a student's own multiple attempts against themselves
+            if file_contents[id1]['roll'] == file_contents[id2]['roll']:
+                continue
+
+            text1, text2 = file_contents[id1]['text'], file_contents[id2]['text']
+            if len(text1) < 20 or len(text2) < 20: continue # Ignore empty/tiny files
+
+            ratio = difflib.SequenceMatcher(None, text1, text2).ratio()
+            if ratio > 0.80: # Flag anything over 80% identical
+                results.append({
+                    'student1': file_contents[id1]['roll'],
+                    'student2': file_contents[id2]['roll'],
+                    'file1': file_contents[id1]['fname'],
+                    'file2': file_contents[id2]['fname'],
+                    'similarity': round(ratio * 100, 1)
+                })
+
+    results.sort(key=lambda x: x['similarity'], reverse=True)
+    return jsonify({'status': 'success', 'data': results})
+
+@admin_bp.route('/api/toggle_submissions', methods=['POST'])
+def api_toggle_submissions():
+    if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
+
+    config_path = 'config.json'
+    with open(config_path, 'r+') as f:
+        config = json.load(f)
+        # Flip the boolean (defaulting to True if it doesn't exist yet)
+        new_state = not config.get('submissions_open', True)
+        config['submissions_open'] = new_state
+        f.seek(0)
+        json.dump(config, f, indent=4)
+        f.truncate()
+
+    current_app.config['SUBMISSIONS_OPEN'] = new_state
+    state_str = "OPENED" if new_state else "CLOSED"
+    return jsonify({'status': 'success', 'message': f'Submissions are now {state_str}.', 'is_open': new_state})
