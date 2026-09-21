@@ -7,6 +7,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.bootstrap5.min.css" rel="stylesheet">
+
+    <!-- NEW: Highlight.js Theme -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f6f9; }
         .table-container { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-top: 20px;}
@@ -55,7 +58,14 @@
 			<!-- THE NEW LAB MANAGER BUTTON -->
 		        <button type="button" class="btn btn-secondary shadow-sm fw-bold" data-bs-toggle="modal" data-bs-target="#labManagerModal">🛠️ Lab Manager</button>
 			<!-- NEW REFRESH BUTTON -->
-                        <button type="button" id="btnRefreshTable" class="btn btn-info shadow-sm fw-bold text-white">🔄 Refresh Status</button>
+                        <!-- REFRESH & LIVE TOGGLE -->
+                        <div class="d-flex align-items-center bg-light border rounded px-2 py-1 shadow-sm">
+                            <button type="button" id="btnRefreshTable" class="btn btn-sm btn-info fw-bold text-white me-3">🔄 Refresh</button>
+                            <div class="form-check form-switch m-0">
+                                <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+                                <label class="form-check-label text-muted small fw-bold mt-1" for="autoRefreshToggle">Live</label>
+                            </div>
+                        </div>
 			<!-- NEW GRADER BUTTON -->
                         <form action="{{ url_for('admin.trigger_grader') }}" method="POST" class="m-0">
                             <button type="submit" class="btn btn-warning shadow-sm fw-bold">⚙️ Run Auto-Grader</button>
@@ -66,6 +76,54 @@
                         <form action="{{ url_for('student.logout') }}" method="POST" class="m-0">
                             <button type="submit" class="btn btn-outline-danger shadow-sm">Logout</button>
                         </form>
+                    </div>
+                </div>
+
+                <!-- NEW: Live Summary Stats -->
+                <div class="row mb-4" id="summaryStats">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white shadow-sm border-0">
+                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 opacity-75">Total Submissions</h6>
+                                    <h3 class="fw-bold mb-0" id="statTotal">0</h3>
+                                </div>
+                                <span class="fs-1 opacity-50">📁</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white shadow-sm border-0">
+                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 opacity-75">Passed Everything</h6>
+                                    <h3 class="fw-bold mb-0" id="statPassed">0</h3>
+                                </div>
+                                <span class="fs-1 opacity-50">✅</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white shadow-sm border-0">
+                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 opacity-75">Failed / Errors</h6>
+                                    <h3 class="fw-bold mb-0" id="statFailed">0</h3>
+                                </div>
+                                <span class="fs-1 opacity-50">⚠️</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-dark shadow-sm border-0">
+                            <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-0 opacity-75">Pending Eval</h6>
+                                    <h3 class="fw-bold mb-0" id="statPending">0</h3>
+                                </div>
+                                <span class="fs-1 opacity-50">⏳</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -243,6 +301,9 @@
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 
+    <!-- NEW: Highlight.js Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
     <script>
         $(document).ready(function() {
             // NEW: Suppress ugly DataTables alert popups on timeout
@@ -320,6 +381,28 @@
                 "drawCallback": function (settings) {
                     var api = this.api();
 
+                    // --- NEW: Calculate Live Stats from currently visible rows ---
+                    var total = 0, passed = 0, failed = 0, pending = 0;
+
+                    api.rows({ search: 'applied' }).data().each(function(row) {
+                        total++;
+                        var statusStr = row.status || "";
+                        if (statusStr.includes('Passed') || statusStr.includes('Success')) {
+                            passed++;
+                        } else if (statusStr.includes('Pending') || statusStr.includes('Uploaded')) {
+                            pending++;
+                        } else {
+                            failed++;
+                        }
+                    });
+
+                    // Animate the numbers in
+                    $('#statTotal').text(total);
+                    $('#statPassed').text(passed);
+                    $('#statFailed').text(failed);
+                    $('#statPending').text(pending);
+                    // -------------------------------------------------------------
+
                     // Target Dept (Col 3) and Status (Col 5)
                     api.columns([3, 5], { search: 'applied' }).every(function () {
                         var column = this;
@@ -357,6 +440,23 @@
 	    // Manual Refresh Button Logic (Replaces setInterval)
         // --- NEW ROBUST REFRESH BUTTON LOGIC ---
             var $refreshBtn = $('#btnRefreshTable');
+            $refreshBtn.off('click').on('click', function() {
+                $refreshBtn.prop('disabled', true).text('⏳...');
+                table.ajax.reload(null, false);
+            });
+            table.on('xhr.dt', function () {
+                $refreshBtn.prop('disabled', false).text('🔄 Refresh');
+            });
+
+            // NEW: 10-Second Auto-Polling
+            setInterval(function() {
+                if ($('#autoRefreshToggle').is(':checked')) {
+                    // Only refresh if no modals are open (don't interrupt the teacher)
+                    if (!$('.modal.show').length) {
+                        table.ajax.reload(null, false);
+                    }
+                }
+            }, 10000);
 
             $refreshBtn.off('click').on('click', function() {
                 // 1. Lock the button and change text to prevent spam clicks
@@ -373,20 +473,35 @@
             });
 
             // Modal Logic
+            // Upgraded Code Viewer Modal Logic
             $('#submissionsTable').on('click', '.view-btn', function() {
                 var subId = $(this).data('subid');
                 var filename = $(this).data('filename');
 
                 $('#viewModalLabel').text(filename);
-                $('#fileContentCode').text('Fetching file content...');
+                var $codeBlock = $('#fileContentCode');
+
+                // Reset the code block completely
+                $codeBlock.text('Fetching file content...');
+                $codeBlock.removeAttr('data-highlighted').removeClass();
 
                 var viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
                 viewModal.show();
 
                 $.get('/admin/view/' + subId, function(data) {
-                    $('#fileContentCode').text(data);
+                    $codeBlock.text(data);
+
+                    // Determine language for highlighting
+                    var ext = filename.split('.').pop().toLowerCase();
+                    if (ext === 'c' || ext === 'cpp') $codeBlock.addClass('language-cpp');
+                    else if (ext === 'py') $codeBlock.addClass('language-python');
+                    else if (ext === 'java') $codeBlock.addClass('language-java');
+                    else if (ext === 'sh') $codeBlock.addClass('language-bash');
+
+                    // Apply IDE styling
+                    hljs.highlightElement($codeBlock[0]);
                 }).fail(function() {
-                    $('#fileContentCode').text('Error: Could not load file.');
+                    $codeBlock.text('Error: Could not load file.');
                 });
             });
 	   
