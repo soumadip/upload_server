@@ -1,9 +1,9 @@
 import pytest
 import os
 import json
+import shutil
 from app import create_app, init_db
 
-# This fixture creates a completely isolated environment for every test run
 @pytest.fixture(autouse=True)
 def isolated_filesystem(tmp_path, monkeypatch):
     # Move the test execution into a temporary directory
@@ -24,14 +24,25 @@ def isolated_filesystem(tmp_path, monkeypatch):
 
 @pytest.fixture
 def app():
-    # Spin up the Flask app in the isolated directory
+    # 1. Grab the real path to your HTML templates BEFORE we isolate Flask
+    real_templates = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'app', 'templates'))
+    
+    # 2. Spin up the Flask app
     app = create_app()
+    
+    # 3. Restrict the root path so config and test_cases stay inside the temp folder
+    app.root_path = os.path.join(os.getcwd(), 'app')
+    os.makedirs(app.root_path, exist_ok=True)
+    
+    # 4. Clone the HTML templates into the temp folder so Flask can render them
+    shutil.copytree(real_templates, os.path.join(app.root_path, 'templates'))
+    
     app.config.update({
         "TESTING": True,
-        "WTF_CSRF_ENABLED": False # Helpful if you add Flask-WTF forms later
+        "WTF_CSRF_ENABLED": False 
     })
     
-    # Initialize the test database in the temp folder
+    # 5. Initialize the test database in the temp folder
     with app.app_context():
         init_db()
         

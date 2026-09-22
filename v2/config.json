@@ -27,7 +27,11 @@
         "lab_test_03": [
             "c",
             "cpp"
+        ],
+        "pytest_lab_02": [
+            "py",
+            "java"
         ]
     },
-    "submissions_open": true
+    "submissions_open": false
 }
