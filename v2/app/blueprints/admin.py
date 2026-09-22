@@ -1,6 +1,6 @@
 import hmac
 from flask import Blueprint, render_template, request, session, flash, current_app, abort, send_file, Response, redirect, url_for, jsonify
-import sqlite3, os, zipfile, io, csv, threading, time, difflib, re
+import sqlite3, os, zipfile, io, csv, threading, time, difflib, re, json
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from ..grader import run_grader_task
@@ -432,7 +432,9 @@ def api_check_similarity():
 def api_toggle_submissions():
     if not session.get('is_admin'): return jsonify({'error': 'Unauthorized'}), 403
 
-    config_path = 'config.json'
+    # CRITICAL FIX: Use the absolute root path so it never misses the file
+    config_path = os.path.join(current_app.root_path, '..', 'config.json')
+
     with open(config_path, 'r+') as f:
         config = json.load(f)
         # Flip the boolean (defaulting to True if it doesn't exist yet)

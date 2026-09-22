@@ -5,7 +5,7 @@ from werkzeug.utils import secure_filename
 def create_new_lab(app, new_lab_name, extensions):
     safe_lab = secure_filename(new_lab_name)
 
-    # 1. Update the JSON config
+    # 1. Update the JSON config on disk
     config_path = os.path.join(app.root_path, '..', 'config.json')
     with open(config_path, 'r') as f:
         config = json.load(f)
@@ -15,13 +15,17 @@ def create_new_lab(app, new_lab_name, extensions):
 
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=4)
+            
+        # CRITICAL FIX: Update the live app memory so the UI dropdowns see it instantly!
+        app.config['LAB_EXTENSIONS'][safe_lab] = extensions
 
     # 2. Create the physical directory for test cases
     test_dir = os.path.join(app.root_path, '..', 'test_cases', safe_lab)
     os.makedirs(test_dir, exist_ok=True)
 
 def set_active_lab(app, lab_name):
-    config_path = 'config.json'
+    # CRITICAL FIX: Use absolute path to guarantee it finds the file
+    config_path = os.path.join(app.root_path, '..', 'config.json')
     with open(config_path, 'r+') as f:
         config = json.load(f)
         config['active_lab'] = lab_name
@@ -31,4 +35,3 @@ def set_active_lab(app, lab_name):
 
     app.config['ACTIVE_LAB'] = lab_name
     return True
-

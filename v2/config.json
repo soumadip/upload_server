@@ -19,6 +19,15 @@
         "lab_test_01": [
             "c",
             "cpp"
+        ],
+        "lab_test_02": [
+            "c",
+            "cpp"
+        ],
+        "lab_test_03": [
+            "c",
+            "cpp"
         ]
-    }
+    },
+    "submissions_open": true
 }

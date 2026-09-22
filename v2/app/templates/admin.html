@@ -622,8 +622,10 @@
 
             // Global Lock Toggle
             $('#btnToggleSubmissions').click(function() {
+                var btn = $(this);
+                btn.prop('disabled', true); // Prevent double-clicking
+                
                 $.post('/admin/api/toggle_submissions', function(res) {
-                    var btn = $('#btnToggleSubmissions');
                     if (res.is_open) {
                         btn.removeClass('btn-success').addClass('btn-outline-danger').html('🔒 Lock Lab');
                         Swal.fire('Unlocked', res.message, 'success');
@@ -631,9 +633,13 @@
                         btn.removeClass('btn-outline-danger').addClass('btn-success').html('🔓 Unlock Lab');
                         Swal.fire('Locked', res.message, 'warning');
                     }
+                    btn.prop('disabled', false);
+                }).fail(function() {
+                    Swal.fire('Error', 'Failed to communicate with the server.', 'error');
+                    btn.prop('disabled', false);
                 });
             });
-
+            
             // Plagiarism Checker
             $('#btnPlagiarism').click(function() {
                 var plagModal = new bootstrap.Modal(document.getElementById('plagiarismModal'));
